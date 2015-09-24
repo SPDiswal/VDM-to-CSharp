@@ -41,8 +41,6 @@
 																<arg value="submodule"/>
 																<arg value="update"/>
 																<arg value="--init"/>
-																<!-- if --remote is enabled then it will update the submodule to the specified branch but leave a pending commit and detached head -->
-																<!--arg value="--remote"/-->
 																<arg value="--force"/>
 
 													 <redirector outputproperty="redirector.out"

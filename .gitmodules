@@ -1,4 +1,5 @@
 [submodule "externals/documentation"]
 	path = externals/documentation
 	url = https://github.com/overturetool/documentation.git
-	branch = master
+	branch = origin/master
+	ignore = dirty
