@@ -41,6 +41,7 @@
 																<arg value="submodule"/>
 																<arg value="update"/>
 																<arg value="--init"/>
+																<arg value="--remote"/>
 																<arg value="--force"/>
 
 													 <redirector outputproperty="redirector.out"
