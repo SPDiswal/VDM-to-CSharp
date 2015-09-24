@@ -13,7 +13,63 @@
   <name>Overture External Resources</name>
 
   <modules>
-    <module>documentation</module>
     <module>examples</module>
   </modules>
+  
+  
+  
+  
+   <build>
+    <plugins>
+
+ <plugin>
+								 <artifactId>maven-antrun-plugin</artifactId>
+								 <executions>
+									 <execution>
+										 <!-- this execution happens just after compiling the java classes, 
+													and builds the native code. We use an antrun for this, rather than an exec, 
+													as it finds make on the system path. -->
+										 <id>build-native-mac</id>
+										 <phase>process-classes</phase>
+										 <goals>
+											 <goal>run</goal>
+										 </goals>
+										 <configuration>
+											 <target>
+												 <exec  executable="git"
+															 failonerror="true">
+																<arg value="submodule"/>
+																<arg value="update"/>
+																<arg value="--init"/>
+																<!-- if --remote is enabled then it will update the submodule to the specified branch but leave a pending commit and detached head -->
+																<!--arg value="--remote"/-->
+																<arg value="--force"/>
+
+													 <redirector outputproperty="redirector.out"
+																			 errorproperty="redirector.err">
+														 <inputfilterchain>
+															 <replacestring from="before" to="after" />
+														 </inputfilterchain>
+														 <outputmapper type="merge" to="target/redirector.out" />
+														 <errormapper type="merge" to="target/redirector.err" />
+													 </redirector>
+												 </exec>
+											 </target>
+										 </configuration>
+									 </execution>
+								 </executions>
+							 </plugin>
+
+
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>force-download-externals</id>
+      <properties>
+        <force-download>true</force-download>
+      </properties>
+    </profile>
+  </profiles>
 </project>
