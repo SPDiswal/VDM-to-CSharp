@@ -3,6 +3,7 @@ package org.overture.codegen.vdm2java;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.overture.codegen.cgast.INode;
 import org.overture.codegen.cgast.analysis.DepthFirstAnalysisAdaptor;
 import org.overture.codegen.cgast.expressions.AIntLiteralExpCG;
 import org.overture.codegen.cgast.types.AExternalTypeCG;
@@ -80,6 +81,7 @@ public class JavaTransSeries
 		FuncValPrefixes funcValPrefixes = varMan.getFuncValPrefixes();
 		PatternVarPrefixes patternPrefixes = varMan.getPatternPrefixes();
 		UnionTypeVarPrefixes unionTypePrefixes = varMan.getUnionTypePrefixes();
+		List<INode> cloneFreeNodes = codeGen.getJavaFormat().getValueSemantics().getCloneFreeNodes();
 		
 		TransAssistantCG transAssist = codeGen.getTransAssistant();
 		IPostCheckCreator postCheckCreator = new JavaPostCheckCreator(varMan.postCheckMethodName());
@@ -102,8 +104,8 @@ public class JavaTransSeries
 		PostCheckTrans postCheckTr = new PostCheckTrans(postCheckCreator, transAssist, varMan.funcRes(), new JavaValueSemanticsTag(false));
 		IsExpTrans isExpTr = new IsExpTrans(transAssist, varMan.isExpSubject());
 		SeqConvTrans seqConvTr = new SeqConvTrans(transAssist);
-		TracesTrans tracesTr = new TracesTrans(transAssist, iteVarPrefixes, tracePrefixes, langIte, new JavaCallStmToStringBuilder());
-		UnionTypeTrans unionTypeTr = new UnionTypeTrans(transAssist, unionTypePrefixes, codeGen.getJavaFormat().getValueSemantics().getCloneFreeNodes());
+		TracesTrans tracesTr = new TracesTrans(transAssist, iteVarPrefixes, tracePrefixes, langIte, new JavaCallStmToStringBuilder(), cloneFreeNodes);
+		UnionTypeTrans unionTypeTr = new UnionTypeTrans(transAssist, unionTypePrefixes, cloneFreeNodes);
 		JavaToStringTrans javaToStringTr = new JavaToStringTrans(info);
 		RecMethodsTrans recTr = new RecMethodsTrans(codeGen.getJavaFormat().getRecCreator());
 		ConstructorTrans ctorTr = new ConstructorTrans(transAssist, OBJ_INIT_CALL_NAME_PREFIX);
@@ -111,10 +113,10 @@ public class JavaTransSeries
 		JUnit4Trans junitTr = new JUnit4Trans(transAssist, codeGen);
 
 		// Start concurrency transformations
-		SentinelTrans sentinelTr = new SentinelTrans(info);
-		MainClassConcTrans mainClassTr = new MainClassConcTrans(info);
-		MutexDeclTrans mutexTr = new MutexDeclTrans(info);
-		EvalPermPredTrans evalPermPredTr = new EvalPermPredTrans(transAssist);
+		SentinelTrans sentinelTr = new SentinelTrans(info, varMan.getConcPrefixes());
+		MainClassConcTrans mainClassTr = new MainClassConcTrans(info, varMan.getConcPrefixes());
+		MutexDeclTrans mutexTr = new MutexDeclTrans(info, varMan.getConcPrefixes());
+		EvalPermPredTrans evalPermPredTr = new EvalPermPredTrans(transAssist, varMan.getConcPrefixes());
 		// End concurrency transformations
 
 		// Set up order of transformations
@@ -160,7 +162,7 @@ public class JavaTransSeries
 		return new Exists1CounterData(type, initExp);
 	}
 
-	public void init()
+	public void clear()
 	{
 		funcValAssist.getFuncValInterfaces().clear();
 	}

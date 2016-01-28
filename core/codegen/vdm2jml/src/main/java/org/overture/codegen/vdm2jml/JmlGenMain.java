@@ -14,7 +14,6 @@ import org.overture.codegen.utils.GeneralCodeGenUtils;
 import org.overture.codegen.utils.GeneralUtils;
 import org.overture.codegen.utils.GeneratedData;
 import org.overture.codegen.vdm2java.JavaCodeGenMain;
-import org.overture.codegen.vdm2java.JavaCodeGenUtil;
 import org.overture.config.Release;
 import org.overture.config.Settings;
 import org.overture.typechecker.util.TypeCheckerUtil;
@@ -26,6 +25,7 @@ public class JmlGenMain
 	public static final String PRINT_ARG = "-print";
 	public static final String FOLDER_ARG = "-folder";
 	public static final String INVARIANT_FOR = "-invariant_for";
+	public static final String NO_TRACE = "-notrace";
 
 	public static void main(String[] args)
 	{
@@ -95,6 +95,11 @@ public class JmlGenMain
 			{
 				jmlGen.getJmlSettings().setGenInvariantFor(true);
 			}
+			else if(arg.equals(NO_TRACE))
+			{
+				jmlGen.getIrSettings().setGenerateTraces(false);
+				jmlGen.getJavaSettings().setMakeClassesSerializable(false);
+			}
 			else
 			{
 				// It's a file or a directory
@@ -102,7 +107,7 @@ public class JmlGenMain
 
 				if (file.isFile())
 				{
-					if (JavaCodeGenUtil.isSupportedVdmSourceFile(file))
+					if (GeneralCodeGenUtils.isVdmSourceFile(file))
 					{
 						files.add(file);
 					}
@@ -112,8 +117,6 @@ public class JmlGenMain
 				}
 			}
 		}
-
-		//GeneralUtils.deleteFolderContents(outputDir, true);
 
 		try
 		{

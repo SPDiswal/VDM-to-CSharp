@@ -13,6 +13,7 @@ import org.overture.ast.analysis.AnalysisException;
 import org.overture.ast.definitions.SClassDefinition;
 import org.overture.ast.lex.Dialect;
 import org.overture.ast.modules.AModuleModules;
+import org.overture.codegen.ir.CodeGenBase;
 import org.overture.codegen.ir.IRSettings;
 import org.overture.codegen.mojocg.util.DelegateTrans;
 import org.overture.codegen.utils.GeneralCodeGenUtils;
@@ -38,6 +39,7 @@ public class Vdm2JavaMojo extends Vdm2JavaBaseMojo
 {
 	public static final String VDM_PP = "pp";
 	public static final String VDM_SL = "sl";
+	public static final String VDM_RT = "rt";
 	
 	public static final String VDM_10 = "vdm10";
 	public static final String VDM_CLASSIC = "classic";
@@ -127,7 +129,7 @@ public class Vdm2JavaMojo extends Vdm2JavaBaseMojo
 			
 			try
 			{
-				genData = javaCodeGen.generateJavaFromVdm(tcResult.result);
+				genData = javaCodeGen.generate(CodeGenBase.getNodes(tcResult.result));
 			} catch (AnalysisException e)
 			{
 				e.printStackTrace();
@@ -143,7 +145,7 @@ public class Vdm2JavaMojo extends Vdm2JavaBaseMojo
 			
 			try
 			{
-				genData = javaCodeGen.generateJavaFromVdmModules(tcResult.result);
+				genData = javaCodeGen.generate(CodeGenBase.getNodes(tcResult.result));
 				
 			} catch (AnalysisException e)
 			{
@@ -152,7 +154,27 @@ public class Vdm2JavaMojo extends Vdm2JavaBaseMojo
 						+ e.getMessage());
 			}
 			
-		} else
+		} else if(dialect.equals(VDM_RT))
+		{
+			try
+			{
+				Settings.dialect = Dialect.VDM_RT;
+				TypeCheckResult<List<SClassDefinition>> tcResult = TypeCheckerUtil.typeCheckRt(files);
+				
+				validateTcResult(tcResult);
+
+				javaSettings.setMakeClassesSerializable(true);
+				
+				genData = javaCodeGen.generate(CodeGenBase.getNodes(tcResult.result));
+				
+			} catch (AnalysisException e)
+			{
+				e.printStackTrace();
+				throw new MojoExecutionException("Got unexpected error when trying to code generate VDM-RT model: "
+						+ e.getMessage());
+			}
+		}
+		else
 		{
 			throw new MojoExecutionException(String.format("Expected dialect to be '%s' or '%s'", VDM_SL, VDM_PP));
 		}
@@ -206,7 +228,7 @@ public class Vdm2JavaMojo extends Vdm2JavaBaseMojo
 	{
 		for(File f : GeneralUtils.getFilesRecursively(specificationRoot))
 		{
-			if(JavaCodeGenUtil.isSupportedVdmSourceFile(f))
+			if(GeneralCodeGenUtils.isVdmSourceFile(f))
 			{
 				files.add(f);
 			}

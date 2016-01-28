@@ -10,6 +10,7 @@ import org.overture.ast.definitions.SFunctionDefinition;
 import org.overture.ast.modules.AModuleModules;
 import org.overture.ast.util.ClonableString;
 import org.overture.codegen.cgast.INode;
+import org.overture.codegen.cgast.PCG;
 import org.overture.codegen.cgast.SDeclCG;
 import org.overture.codegen.cgast.SStmCG;
 import org.overture.codegen.cgast.analysis.DepthFirstAnalysisAdaptor;
@@ -22,10 +23,12 @@ import org.overture.codegen.cgast.declarations.ANamedTypeDeclCG;
 import org.overture.codegen.cgast.declarations.ARecordDeclCG;
 import org.overture.codegen.cgast.declarations.ATypeDeclCG;
 import org.overture.codegen.cgast.declarations.AVarDeclCG;
+import org.overture.codegen.cgast.declarations.SClassDeclCG;
 import org.overture.codegen.cgast.expressions.ACastUnaryExpCG;
 import org.overture.codegen.cgast.expressions.AIdentifierVarExpCG;
 import org.overture.codegen.cgast.statements.ABlockStmCG;
 import org.overture.codegen.cgast.types.AUnknownTypeCG;
+import org.overture.codegen.ir.CodeGenBase;
 import org.overture.codegen.ir.IRConstants;
 import org.overture.codegen.ir.IREventObserver;
 import org.overture.codegen.ir.IRInfo;
@@ -33,6 +36,7 @@ import org.overture.codegen.ir.IRSettings;
 import org.overture.codegen.ir.IRStatus;
 import org.overture.codegen.ir.IrNodeInfo;
 import org.overture.codegen.logging.Logger;
+import org.overture.codegen.traces.TracesTrans;
 import org.overture.codegen.trans.AssignStmTrans;
 import org.overture.codegen.trans.assistants.TransAssistantCG;
 import org.overture.codegen.trans.uniontypes.UnionTypeTrans;
@@ -45,14 +49,18 @@ import org.overture.codegen.vdm2java.JavaSettings;
 import org.overture.codegen.vdm2jml.data.RecClassInfo;
 import org.overture.codegen.vdm2jml.data.StateDesInfo;
 import org.overture.codegen.vdm2jml.predgen.TypePredDecorator;
+import org.overture.codegen.vdm2jml.predgen.info.AbstractTypeInfo;
 import org.overture.codegen.vdm2jml.predgen.info.NamedTypeInfo;
 import org.overture.codegen.vdm2jml.predgen.info.NamedTypeInvDepCalculator;
+import org.overture.codegen.vdm2jml.trans.JmlTraceTrans;
 import org.overture.codegen.vdm2jml.trans.JmlUnionTypeTrans;
 import org.overture.codegen.vdm2jml.trans.RecAccessorTrans;
 import org.overture.codegen.vdm2jml.trans.RecInvTransformation;
 import org.overture.codegen.vdm2jml.trans.TargetNormaliserTrans;
+import org.overture.codegen.vdm2jml.trans.TcExpInfo;
 import org.overture.codegen.vdm2jml.util.AnnotationSorter;
 import org.overture.codegen.vdm2jml.util.IsValChecker;
+import org.overture.codegen.vdm2jml.util.NameGen;
 
 import de.hunsicker.jalopy.storage.Convention;
 import de.hunsicker.jalopy.storage.ConventionKeys;
@@ -104,6 +112,8 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 	// The class owning the invChecksOn flag
 	private ADefaultClassDeclCG invChecksFlagOwner = null;
 	
+	private List<TcExpInfo> tcExpInfo;
+	
 	public JmlGenerator()
 	{
 		this(new JavaCodeGen());
@@ -132,19 +142,28 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 
 		List<DepthFirstAnalysisAdaptor> series = this.javaGen.getTransSeries().getSeries();
 
+		List<INode> cloneFreeNodes = javaGen.getJavaFormat().getValueSemantics().getCloneFreeNodes();
+		
 		// Replace the union type transformation
 		for(int i = 0; i < series.size(); i++)
 		{
-			if(series.get(i) instanceof UnionTypeTrans)
+			DepthFirstAnalysisAdaptor currentTr = series.get(i);
+			
+			if(currentTr instanceof UnionTypeTrans)
 			{
 				TransAssistantCG assist = javaGen.getTransAssistant();
 				UnionTypeVarPrefixes varPrefixes = javaGen.getVarPrefixManager().getUnionTypePrefixes();
-				List<INode> cloneFreeNodes = javaGen.getJavaFormat().getValueSemantics().getCloneFreeNodes();
 				
 				JmlUnionTypeTrans newUnionTypeTr = new JmlUnionTypeTrans(assist, varPrefixes, cloneFreeNodes, stateDesInfo);
 				
 				series.set(i, newUnionTypeTr);
-				break;
+			}
+			else if(currentTr instanceof TracesTrans)
+			{
+				TracesTrans orig = (TracesTrans) currentTr;
+				JmlTraceTrans newTraceTrans = new JmlTraceTrans(orig.getTransAssist(), orig.getIteVarPrefixes(), orig.getTracePrefixes(), orig.getLangIterator(), orig.getToStringBuilder(), cloneFreeNodes);
+				series.set(i, newTraceTrans);
+				this.tcExpInfo = newTraceTrans.getTcExpInfo();
 			}
 		}
 		
@@ -179,6 +198,7 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 		irSettings.setGeneratePostConds(true);
 		irSettings.setGeneratePostCondChecks(false);
 		irSettings.setGenerateInvariants(true);
+		irSettings.setGenerateTraces(true);
 		
 		JavaSettings javaSettings = getJavaSettings();
 		javaSettings.setGenRecsAsInnerClasses(false);
@@ -203,12 +223,12 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 		javaGen.registerIrObs(this);
 		javaGen.registerJavaQuoteObs(this);
 
-		return javaGen.generateJavaFromVdmModules(ast);
+		return javaGen.generate(CodeGenBase.getNodes(ast));
 	}
 
 	@Override
-	public List<IRStatus<INode>> initialIRConstructed(
-			List<IRStatus<INode>> ast, IRInfo info)
+	public List<IRStatus<PCG>> initialIRConstructed(
+			List<IRStatus<PCG>> ast, IRInfo info)
 	{
 		List<IRStatus<AModuleDeclCG>> modules = IRStatus.extract(ast, AModuleDeclCG.class);
 		
@@ -249,7 +269,7 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 	}
 
 	@Override
-	public List<IRStatus<INode>> finalIRConstructed(List<IRStatus<INode>> ast,
+	public List<IRStatus<PCG>> finalIRConstructed(List<IRStatus<PCG>> ast,
 			IRInfo info)
 	{
 		// In the final version of the IR, received by the Java code generator, all
@@ -266,7 +286,7 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 		 */
 		RecClassInfo recInfo = makeRecStateAccessorBased(ast);
 		
-		List<IRStatus<INode>> newAst = new LinkedList<IRStatus<INode>>(ast);
+		List<IRStatus<PCG>> newAst = new LinkedList<IRStatus<PCG>>(ast);
 
 		// To circumvent a problem with OpenJML. See documentation of makeRecsOuterClasses
 		newAst.addAll(util.makeRecsOuterClasses(ast, recInfo));
@@ -347,8 +367,10 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 			}
 		}
 		
+		TypePredDecorator assertTr = new TypePredDecorator(this, stateDesInfo, recInfo);
+		
 		// Add assertions to check for violation of record and named type invariants
-		addAssertions(newAst, stateDesInfo, recInfo);
+		addAssertions(newAst, assertTr);
 
 		// Make sure that the JML annotations are ordered correctly
 		sortAnnotations(newAst);
@@ -356,8 +378,29 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 		// Make all nodes have a copy of each named type invariant method
 		util.distributeNamedTypeInvs(newAst);
 		
+		// Type check trace tests
+		tcTraceTest(assertTr);
+		
 		// Return back the modified AST to the Java code generator
 		return newAst;
+	}
+
+	private void tcTraceTest(TypePredDecorator assertTr)
+	{
+		for(TcExpInfo currentInfo : tcExpInfo)
+		{
+			AbstractTypeInfo typeInfo = assertTr.getTypePredUtil().findTypeInfo(currentInfo.getFormalParamType());
+
+			String enclosingClass = currentInfo.getTraceEnclosingClass();
+			String javaRootPackage = getJavaSettings().getJavaRootPackage();
+			
+			SClassDeclCG clazz = getJavaGen().getInfo().getDeclAssistant().findClass(getJavaGen().getInfo().getClasses(), enclosingClass);
+			NameGen nameGen = new NameGen(clazz);
+			String expRef = currentInfo.getExpRef();
+			String checkStr = typeInfo.consCheckExp(enclosingClass, javaRootPackage, expRef, nameGen);
+
+			currentInfo.getTypeCheck().setMetaData(annotator.consMetaData("//@ " + JML_ASSERT_ANNOTATION + " " +  checkStr + ";"));
+		}
 	}
 
 	private void addVdmToJmlRuntimeImport(ADefaultClassDeclCG clazz)
@@ -369,11 +412,11 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 		clazz.setDependencies(allImports);
 	}
 
-	private RecClassInfo makeRecStateAccessorBased(List<IRStatus<INode>> ast) {
+	private RecClassInfo makeRecStateAccessorBased(List<IRStatus<PCG>> ast) {
 
 		RecAccessorTrans recAccTr = new RecAccessorTrans(this);
 
-		for (IRStatus<INode> status : ast) {
+		for (IRStatus<PCG> status : ast) {
 			try {
 				javaGen.getIRGenerator().applyPartialTransformation(status, recAccTr);
 			} catch (org.overture.codegen.cgast.analysis.AnalysisException e) {
@@ -387,7 +430,7 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 		return recAccTr.getRecInfo();
 	}
 
-	private void sortAnnotations(List<IRStatus<INode>> newAst)
+	private void sortAnnotations(List<IRStatus<PCG>> newAst)
 	{
 		AnnotationSorter sorter = new AnnotationSorter();
 
@@ -425,10 +468,8 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 		this.typeInfoList = depCalc.getTypeDataList();
 	}
 
-	private void addAssertions(List<IRStatus<INode>> newAst, StateDesInfo stateDesInfo, RecClassInfo recInfo)
+	private void addAssertions(List<IRStatus<PCG>> newAst, TypePredDecorator assertTr)
 	{
-		TypePredDecorator assertTr = new TypePredDecorator(this, stateDesInfo, recInfo);
-		
 		for (IRStatus<ADefaultClassDeclCG> status : IRStatus.extract(newAst, ADefaultClassDeclCG.class))
 		{
 			ADefaultClassDeclCG clazz = status.getIrNode();
@@ -448,7 +489,7 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 		}
 	}
 
-	private void annotateRecsWithInvs(List<IRStatus<INode>> ast)
+	private void annotateRecsWithInvs(List<IRStatus<PCG>> ast)
 	{
 		List<ARecordDeclCG> recs = util.getRecords(ast);
 		
@@ -477,7 +518,7 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 		}
 	}
 
-	private void setInvChecksOnOwner(List<IRStatus<INode>> ast) {
+	private void setInvChecksOnOwner(List<IRStatus<PCG>> ast) {
 		
 		for (IRStatus<ADefaultClassDeclCG> status : IRStatus.extract(ast, ADefaultClassDeclCG.class))
 		{
@@ -625,10 +666,10 @@ public class JmlGenerator implements IREventObserver, IJavaQuoteEventObserver
 		}
 	}
 	
-	public StateDesInfo normaliseTargets(List<IRStatus<INode>> newAst)
+	public StateDesInfo normaliseTargets(List<IRStatus<PCG>> newAst)
 	{
 		TargetNormaliserTrans normaliser = new TargetNormaliserTrans(this);
-		for (IRStatus<INode> n : newAst)
+		for (IRStatus<PCG> n : newAst)
 		{
 			try
 			{

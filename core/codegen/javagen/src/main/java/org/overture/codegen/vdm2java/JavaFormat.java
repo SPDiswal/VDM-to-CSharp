@@ -80,6 +80,7 @@ import org.overture.codegen.cgast.types.AInterfaceTypeCG;
 import org.overture.codegen.cgast.types.AMethodTypeCG;
 import org.overture.codegen.cgast.types.AObjectTypeCG;
 import org.overture.codegen.cgast.types.ARecordTypeCG;
+import org.overture.codegen.cgast.types.AStringTypeCG;
 import org.overture.codegen.cgast.types.ATupleTypeCG;
 import org.overture.codegen.cgast.types.AUnionTypeCG;
 import org.overture.codegen.cgast.types.AUnknownTypeCG;
@@ -94,7 +95,6 @@ import org.overture.codegen.ir.SourceNode;
 import org.overture.codegen.logging.Logger;
 import org.overture.codegen.merging.MergeVisitor;
 import org.overture.codegen.merging.TemplateCallable;
-import org.overture.codegen.merging.TemplateStructure;
 import org.overture.codegen.trans.funcvalues.FuncValAssistant;
 import org.overture.codegen.utils.GeneralUtils;
 import org.overture.config.Settings;
@@ -109,23 +109,23 @@ public class JavaFormat
 	public static final String SET_UTIL_FILE = "SetUtil";
 	public static final String MAP_UTIL_FILE = "MapUtil";
 
-	private IRInfo info;
+	protected IRInfo info;
 
-	private FuncValAssistant funcValAssist;
-	private MergeVisitor mergeVisitor;
-	private JavaValueSemantics valueSemantics;
-	private JavaFormatAssistant javaFormatAssistant;
-	private JavaRecordCreator recCreator;
-	private JavaVarPrefixManager varPrefixManager;
+	protected FuncValAssistant funcValAssist;
+	protected MergeVisitor mergeVisitor;
+	protected JavaValueSemantics valueSemantics;
+	protected JavaFormatAssistant javaFormatAssistant;
+	protected JavaRecordCreator recCreator;
+	protected JavaVarPrefixManager varPrefixManager;
 	
 	public JavaFormat(JavaVarPrefixManager varPrefixManager,
-			TemplateStructure templateStructure, IRInfo info)
+			String templateRoot, IRInfo info)
 	{
 		this.varPrefixManager = varPrefixManager;
 		this.valueSemantics = new JavaValueSemantics(this);
 		this.recCreator = new JavaRecordCreator(this);
 		TemplateCallable[] templateCallables = TemplateCallableManager.constructTemplateCallables(this, IRAnalysis.class, valueSemantics, recCreator);
-		this.mergeVisitor = new MergeVisitor(templateStructure, templateCallables);
+		this.mergeVisitor = new MergeVisitor(new JavaTemplateManager(templateRoot), templateCallables);
 		this.funcValAssist = null;
 		this.info = info;
 		this.javaFormatAssistant = new JavaFormatAssistant(this.info);
@@ -181,15 +181,10 @@ public class JavaFormat
 	{
 		return valueSemantics.getJavaSettings();
 	}
-
-	public void init()
-	{
-		mergeVisitor.init();
-	}
 	
 	public void clear()
 	{
-		init();
+		mergeVisitor.init();
 		valueSemantics.clear();
 	}
 
@@ -613,8 +608,7 @@ public class JavaFormat
 
 	public String formatSuperType(ADefaultClassDeclCG classDecl)
 	{
-		return classDecl.getSuperName() == null ? "" : "extends "
-				+ classDecl.getSuperName();
+		return classDecl.getSuperNames().isEmpty() ? "" : "extends " + classDecl.getSuperNames().get(0);
 	}
 	
 	public String formatInterfaces(ADefaultClassDeclCG classDecl)
@@ -822,9 +816,15 @@ public class JavaFormat
 			SSeqTypeCG seqType = (SSeqTypeCG) type;
 
 			return format(seqType.getSeqOf());
+		} else if (type instanceof AStringTypeCG)
+		{
+			return format(new ACharBasicTypeCG());
+		} else
+		{
+			Logger.getLog().printErrorln("Expected set, seq or string type when trying to format element type. Got: "
+					+ type);
+			return format(new AUnknownTypeCG());
 		}
-
-		throw new AnalysisException("Expected set or seq type when trying to format element type");
 	}
 
 	public String nextVarName(String prefix)

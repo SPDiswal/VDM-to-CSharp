@@ -65,6 +65,7 @@ import org.overture.codegen.cgast.declarations.ATypeDeclCG;
 import org.overture.codegen.cgast.declarations.AVarDeclCG;
 import org.overture.codegen.cgast.declarations.SClassDeclCG;
 import org.overture.codegen.cgast.expressions.ANotImplementedExpCG;
+import org.overture.codegen.cgast.name.ATokenNameCG;
 import org.overture.codegen.cgast.name.ATypeNameCG;
 import org.overture.codegen.cgast.statements.ABlockStmCG;
 import org.overture.codegen.cgast.statements.ANotImplementedStmCG;
@@ -81,6 +82,7 @@ import org.overture.codegen.cgast.types.ARecordTypeCG;
 import org.overture.codegen.cgast.types.AStringTypeCG;
 import org.overture.codegen.cgast.types.ATemplateTypeCG;
 import org.overture.codegen.ir.IRConstants;
+import org.overture.codegen.ir.IRGenerator;
 import org.overture.codegen.ir.IRInfo;
 import org.overture.codegen.ir.SourceNode;
 import org.overture.codegen.logging.Logger;
@@ -144,9 +146,12 @@ public class DeclAssistantCG extends AssistantBase
 		classCg.setStatic(isStatic);
 		classCg.setStatic(false);
 
-		if (superNames.size() >= 1)
+		for(ILexNameToken s : superNames)
 		{
-			classCg.setSuperName(superNames.get(0).getName());
+			ATokenNameCG superName = new ATokenNameCG();
+			superName.setName(s.getName());
+			
+			classCg.getSuperNames().add(superName);
 		}
 
 		LinkedList<PDefinition> defs = node.getDefinitions();
@@ -259,6 +264,8 @@ public class DeclAssistantCG extends AssistantBase
 		if (!(body instanceof ANotImplementedExpCG))
 		{
 			AReturnStmCG returnStm = new AReturnStmCG();
+			// Approximate return statement source node as the function body
+			returnStm.setSourceNode(body.getSourceNode());
 			returnStm.setExp(body.clone());
 			method.setBody(returnStm);
 		} else
@@ -313,31 +320,51 @@ public class DeclAssistantCG extends AssistantBase
 
 		allDecls.addAll(strategy.getDecls(classDecl));
 
-		String superName = classDecl.getSuperName();
-
-		while (superName != null)
+		Set<String> allSuperNames = getSuperClasses(classDecl, classes);
+		
+		for(String s : allSuperNames)
 		{
-			SClassDeclCG superClassDecl = findClass(classes, superName);
+			SClassDeclCG superClassDecl = findClass(classes, s);
 			
-			if(superClassDecl == null)
+			if(superClassDecl != null)
 			{
-				//This would be the case if the super class
-				// declaration is the VDMThread from the runtime
-				break;
-			}
-
-			for (T superDecl : strategy.getDecls(superClassDecl))
-			{
-				if (isInherited(strategy.getAccess(superDecl)))
+				for (T superDecl : strategy.getDecls(superClassDecl))
 				{
-					allDecls.add(superDecl);
+					if (isInherited(strategy.getAccess(superDecl)))
+					{
+						allDecls.add(superDecl);
+					}
 				}
 			}
-
-			superName = superClassDecl.getSuperName();
 		}
 
 		return allDecls;
+	}
+
+	public Set<String> getSuperClasses(SClassDeclCG classDecl, List<SClassDeclCG> classes)
+	{
+		if(classDecl.getSuperNames().isEmpty())
+		{
+			return new HashSet<>();
+		}
+		else
+		{
+			Set<String> superClasses = new HashSet<>();
+			
+			for(ATokenNameCG s : classDecl.getSuperNames())
+			{
+				superClasses.add(s.getName());
+
+				SClassDeclCG clazz = findClass(classes, s.getName());
+				
+				if(clazz != null)
+				{
+					superClasses.addAll(getSuperClasses(clazz, classes));
+				}
+			}
+			
+			return superClasses;
+		}
 	}
 
 	public List<AMethodDeclCG> getAllMethods(SClassDeclCG classDecl,
@@ -388,18 +415,30 @@ public class DeclAssistantCG extends AssistantBase
 				|| access.equals(IRConstants.PUBLIC);
 	}
 
-	public void setLocalDefs(List<PDefinition> localDefs,
+	public void setFinalLocalDefs(List<PDefinition> localDefs,
 			List<AVarDeclCG> localDecls, IRInfo question)
 			throws AnalysisException
 	{
 		for (PDefinition def : localDefs)
 		{
+			AVarDeclCG varDecl = null;
+
 			if (def instanceof AValueDefinition)
 			{
-				localDecls.add(consLocalVarDecl((AValueDefinition) def, question));
+				varDecl = consLocalVarDecl((AValueDefinition) def, question);
 			} else if (def instanceof AEqualsDefinition)
 			{
-				localDecls.add(consLocalVarDecl((AEqualsDefinition) def, question));
+				varDecl = consLocalVarDecl((AEqualsDefinition) def, question);
+			}
+
+			if (varDecl != null)
+			{
+				varDecl.setFinal(true);
+				localDecls.add(varDecl);
+			} else
+			{
+				Logger.getLog().printErrorln("Problems encountered when trying to construct local variable in '"
+						+ this.getClass().getSimpleName() + "'");
 			}
 		}
 	}
@@ -790,17 +829,26 @@ public class DeclAssistantCG extends AssistantBase
 		return paramsCg;
 	}
 	
+	/**
+	 * Based on the definition table computed by {@link IRGenerator#computeDefTable(List)} this method determines
+	 * whether a identifier state designator is local or not.
+	 * 
+	 * @param id
+	 *            The identifier state designator
+	 * @param info
+	 *            The IR info
+	 * @return True if <code>id</code> is local - false otherwise
+	 */
 	public boolean isLocal(AIdentifierStateDesignator id, IRInfo info)
 	{
 		PDefinition idDef = info.getIdStateDesignatorDefs().get(id);
-		
-		if(idDef == null)
+
+		if (idDef == null)
 		{
-			Logger.getLog().printErrorln("Could not find definition for identifier "
-					+ "state designator " + id + " in '" + this.getClass().getSimpleName() + "'");
+			Logger.getLog().printErrorln("Could not find definition for identifier state designator " + id + " in '"
+					+ this.getClass().getSimpleName());
 			return false;
-		}
-		else
+		} else
 		{
 			return idDef instanceof AAssignmentDefinition;
 		}

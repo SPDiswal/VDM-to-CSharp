@@ -55,6 +55,11 @@ public class TraceNames
 		return "callStm_";
 	}
 	
+	public String callStmIsTypeCorrectNamePrefix()
+	{
+		return "isTypeCorrect";
+	}
+	
 	public String callStmMeetsPreCondNamePrefix()
 	{
 		return "meetsPreCond";
@@ -215,5 +220,15 @@ public class TraceNames
 	public String readStateMethodName()
 	{
 		return "readState";
+	}
+	
+	public String traceVarClassName()
+	{
+		return "TraceVariable";
+	}
+	
+	public String addVarFirstMethodName()
+	{
+		return "addVarFirst";
 	}
 }

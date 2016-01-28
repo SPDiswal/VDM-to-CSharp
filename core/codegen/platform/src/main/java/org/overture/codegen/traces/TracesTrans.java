@@ -1,6 +1,9 @@
 package org.overture.codegen.traces;
 
+import java.util.List;
+
 import org.overture.ast.lex.Dialect;
+import org.overture.codegen.cgast.INode;
 import org.overture.codegen.cgast.SStmCG;
 import org.overture.codegen.cgast.analysis.AnalysisException;
 import org.overture.codegen.cgast.analysis.DepthFirstAnalysisAdaptor;
@@ -26,16 +29,17 @@ import org.overture.config.Settings;
 
 public class TracesTrans extends DepthFirstAnalysisAdaptor
 {
-	private TransAssistantCG transAssistant;
-	private IterationVarPrefixes iteVarPrefixes;
-	private ILanguageIterator langIterator;
-	private ICallStmToStringMethodBuilder toStringBuilder;
-	private TraceNames tracePrefixes;
+	protected TransAssistantCG transAssistant;
+	protected IterationVarPrefixes iteVarPrefixes;
+	protected ILanguageIterator langIterator;
+	protected ICallStmToStringMethodBuilder toStringBuilder;
+	protected TraceNames tracePrefixes;
+	private List<INode> cloneFreeNodes;
 
 	public TracesTrans(TransAssistantCG transAssistant,
 			IterationVarPrefixes iteVarPrefixes, TraceNames tracePrefixes,
 			ILanguageIterator langIterator,
-			ICallStmToStringMethodBuilder toStringBuilder)
+			ICallStmToStringMethodBuilder toStringBuilder, List<INode> cloneFreeNodes)
 	{
 		this.transAssistant = transAssistant;
 		this.iteVarPrefixes = iteVarPrefixes;
@@ -43,6 +47,7 @@ public class TracesTrans extends DepthFirstAnalysisAdaptor
 		this.toStringBuilder = toStringBuilder;
 
 		this.tracePrefixes = tracePrefixes;
+		this.cloneFreeNodes = cloneFreeNodes;
 	}
 
 	@Override
@@ -102,6 +107,7 @@ public class TracesTrans extends DepthFirstAnalysisAdaptor
 		instanceParam.setPattern(transAssistant.getInfo().getPatternAssistant().consIdPattern(tracePrefixes.traceMethodParamName()));
 
 		AMethodDeclCG traceMethod = new AMethodDeclCG();
+		traceMethod.setTag(new TraceMethodTag());
 		
 		traceMethod.getFormalParams().add(instanceParam);
 		
@@ -155,8 +161,7 @@ public class TracesTrans extends DepthFirstAnalysisAdaptor
 		
 		String traceEnclosingClass = getClassName(node);
 		
-		TraceStmBuilder stmBuilder = new TraceStmBuilder(transAssistant,
-				iteVarPrefixes, tracePrefixes, langIterator, toStringBuilder, traceEnclosingClass, storeAssist);
+		TraceStmBuilder stmBuilder = consStmBuilder(storeAssist, traceEnclosingClass);
 
 		SStmCG regModules = registerOtherModules(traceEnclosingClass, storeAssist);
 		TraceNodeData nodeData = stmBuilder.buildFromDeclTerms(node.getTerms());
@@ -174,6 +179,11 @@ public class TracesTrans extends DepthFirstAnalysisAdaptor
 		stms.getStatements().add(buildTestExecutionStms(nodeData.getNodeVar(), getClassName(node)));
 
 		return stms;
+	}
+
+	public TraceStmBuilder consStmBuilder(StoreAssistant storeAssist, String traceEnclosingClass)
+	{
+		return new TraceStmBuilder(this, traceEnclosingClass, storeAssist);
 	}
 	
 	private SStmCG registerOtherModules(String encClass, StoreAssistant storeAssist)
@@ -224,7 +234,7 @@ public class TracesTrans extends DepthFirstAnalysisAdaptor
 		return methodName;
 	}
 	
-	private String getClassName(ANamedTraceDeclCG trace)
+	public String getClassName(ANamedTraceDeclCG trace)
 	{
 		if (trace != null)
 		{
@@ -239,5 +249,35 @@ public class TracesTrans extends DepthFirstAnalysisAdaptor
 				+ trace + " in 'TraceStmsBuilder'");
 
 		return null;
+	}
+
+	public TransAssistantCG getTransAssist()
+	{
+		return transAssistant;
+	}
+	
+	public IterationVarPrefixes getIteVarPrefixes()
+	{
+		return iteVarPrefixes;
+	}
+	
+	public TraceNames getTracePrefixes()
+	{
+		return tracePrefixes;
+	}
+	
+	public ILanguageIterator getLangIterator()
+	{
+		return langIterator;
+	}
+	
+	public ICallStmToStringMethodBuilder getToStringBuilder()
+	{
+		return toStringBuilder;
+	}
+	
+	public List<INode> getCloneFreeNodes()
+	{
+		return cloneFreeNodes;
 	}
 }

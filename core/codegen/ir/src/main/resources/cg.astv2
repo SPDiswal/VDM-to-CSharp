@@ -30,7 +30,7 @@ Abstract Syntax Tree
 /* This section declares the AST by giving root nodes and their possible sub classe */
 
 CG {-> package='org.overture.codegen.cgast'
-	| [sourceNode]:SourceNode
+	| (sourceNode):SourceNode
 	| (tag):java_Object // Tags carry information to support IR analysis
 	| (metaData):eString*} // Meta data is intended to hold printable information such as code annotations
 	= #pattern
@@ -233,7 +233,7 @@ CG {-> package='org.overture.codegen.cgast'
   | [methods]:CG.#decl.method*
   | [functions]:CG.#decl.func*
   | [traces]:CG.#decl.namedTrace*
-  | [superName]:java_String
+  | [superNames]:CG.#name.token*
   | [thread]:CG.#decl.thread
   | [innerClasses]:CG.#decl.class*
   | [interfaces]:CG.#decl.interface*
@@ -268,6 +268,7 @@ CG {-> package='org.overture.codegen.cgast'
 #stm {-> package='org.overture.codegen.cgast.statements'}
            =	{if} [ifExp]:CG.#exp [thenStm]:CG.#stm [elseIf]:CG.#stm.elseIf* [elseStm]:CG.#stm
            | 	{elseIf} [elseIf]:CG.#exp [thenStm]:CG.#stm
+           |  {exp} [exp]:CG.#exp
            | 	{skip}
            |	{return} [exp]:CG.#exp
            |	{abstractBody}

@@ -4,6 +4,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
+import org.overture.ast.definitions.SFunctionDefinition;
 import org.overture.ast.definitions.SOperationDefinition;
 import org.overture.ast.lex.Dialect;
 import org.overture.ast.statements.ACallStm;
@@ -11,7 +12,6 @@ import org.overture.codegen.assistant.DeclAssistantCG;
 import org.overture.codegen.assistant.ExpAssistantCG;
 import org.overture.codegen.cgast.INode;
 import org.overture.codegen.cgast.SExpCG;
-import org.overture.codegen.cgast.SPatternCG;
 import org.overture.codegen.cgast.SStmCG;
 import org.overture.codegen.cgast.STraceDeclCG;
 import org.overture.codegen.cgast.STypeCG;
@@ -31,7 +31,6 @@ import org.overture.codegen.cgast.expressions.AIdentifierVarExpCG;
 import org.overture.codegen.cgast.expressions.AIntLiteralExpCG;
 import org.overture.codegen.cgast.expressions.ANewExpCG;
 import org.overture.codegen.cgast.expressions.ATypeArgExpCG;
-import org.overture.codegen.cgast.expressions.SVarExpCG;
 import org.overture.codegen.cgast.name.ATypeNameCG;
 import org.overture.codegen.cgast.patterns.AIdentifierPatternCG;
 import org.overture.codegen.cgast.patterns.ASetMultipleBindCG;
@@ -59,56 +58,40 @@ import org.overture.codegen.ir.IRConstants;
 import org.overture.codegen.ir.IRInfo;
 import org.overture.codegen.ir.SourceNode;
 import org.overture.codegen.logging.Logger;
-import org.overture.codegen.trans.IterationVarPrefixes;
 import org.overture.codegen.trans.assistants.TransAssistantCG;
-import org.overture.codegen.trans.iterator.ILanguageIterator;
 import org.overture.config.Settings;
 
 public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 {
-	private TransAssistantCG transAssistant;
-	private IterationVarPrefixes iteVarPrefixes;
-	private ILanguageIterator langIterator;
-	private ICallStmToStringMethodBuilder toStringBuilder;
-
-	private TraceNames tracePrefixes;
-	private String traceEnclosingClass;
-
-	private StoreAssistant storeAssistant; 
+	protected String traceEnclosingClass;
+	protected StoreAssistant storeAssistant; 
+	protected TracesTrans traceTrans;
 	
-	public TraceStmBuilder(TransAssistantCG transAssistant, IterationVarPrefixes iteVarPrefixes,
-			TraceNames tracePrefixes, ILanguageIterator langIterator, ICallStmToStringMethodBuilder toStringBuilder,
-			String traceEnclosingClass, StoreAssistant storeAssist)
+	public TraceStmBuilder(TracesTrans traceTrans, String traceEnclosingClass, StoreAssistant storeAssist)
 	{
-		this.transAssistant = transAssistant;
-		this.iteVarPrefixes = iteVarPrefixes;
-		this.langIterator = langIterator;
-		this.toStringBuilder = toStringBuilder;
-
-		this.tracePrefixes = tracePrefixes;
+		this.traceTrans = traceTrans;
 		this.traceEnclosingClass = traceEnclosingClass;
-
 		this.storeAssistant = storeAssist;
 	}
 
 	public IRInfo getInfo()
 	{
-		return transAssistant.getInfo();
+		return getTransAssist().getInfo();
 	}
 	
 	@Override
 	public TraceNodeData caseATraceDeclTermCG(ATraceDeclTermCG node)
 			throws AnalysisException
 	{
-		String name = getInfo().getTempVarNameGen().nextVarName(tracePrefixes.altTraceNodeNamePrefix());
-		AClassTypeCG classType = transAssistant.consClassType(tracePrefixes.altTraceNodeNodeClassName());
+		String name = getInfo().getTempVarNameGen().nextVarName(traceTrans.getTracePrefixes().altTraceNodeNamePrefix());
+		AClassTypeCG classType = getTransAssist().consClassType(traceTrans.getTracePrefixes().altTraceNodeNodeClassName());
 
 		if (node.getTraceDecls().size() == 1)
 		{
 			return node.getTraceDecls().getFirst().apply(this);
 		}
 		{
-			AVarDeclCG altTests = transAssistant.consDecl(name, classType, transAssistant.consDefaultConsCall(classType));
+			AVarDeclCG altTests = getTransAssist().consDecl(name, classType, getTransAssist().consDefaultConsCall(classType));
 
 			ABlockStmCG stms = new ABlockStmCG();
 			stms.getLocalDefs().add(altTests);
@@ -120,12 +103,12 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 				TraceNodeData nodeData = traceDecl.apply(this);
 
 				stms.getStatements().add(nodeData.getStms());
-				addStms.add(transAssistant.consInstanceCallStm(classType, name, tracePrefixes.addMethodName(), nodeData.getNodeVar()));
+				addStms.add(getTransAssist().consInstanceCallStm(classType, name, traceTrans.getTracePrefixes().addMethodName(), nodeData.getNodeVar()));
 			}
 			
 			stms.getStatements().addAll(addStms);
 
-			return new TraceNodeData(transAssistant.getInfo().getExpAssistant().consIdVar(name, classType.clone()), stms);
+			return new TraceNodeData(getInfo().getExpAssistant().consIdVar(name, classType.clone()), stms, stms);
 		}
 	}
 
@@ -139,17 +122,24 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 		
 		if(Settings.dialect != Dialect.VDM_SL)
 		{
-			classTypeName = tracePrefixes.callStmClassTypeName();
+			classTypeName = traceTrans.getTracePrefixes().callStmClassTypeName();
 		}
 		else 
 		{
-			classTypeName = tracePrefixes.callStmBaseClassTypeName();
+			classTypeName = traceTrans.getTracePrefixes().callStmBaseClassTypeName();
 		}
 		
-		AClassTypeCG callStmType = transAssistant.consClassType(classTypeName);
-		String callStmName = getInfo().getTempVarNameGen().nextVarName(tracePrefixes.callStmNamePrefix());
+		AClassTypeCG callStmType = getTransAssist().consClassType(classTypeName);
+		String callStmName = getInfo().getTempVarNameGen().nextVarName(traceTrans.getTracePrefixes().callStmNamePrefix());
 		AAnonymousClassExpCG callStmCreation = new AAnonymousClassExpCG();
 		callStmCreation.setType(callStmType);
+		
+		AMethodDeclCG typeCheckMethod = consTypeCheckMethod(node.getCallStm().clone());
+		
+		if(typeCheckMethod != null)
+		{
+			callStmCreation.getMethods().add(typeCheckMethod);
+		}
 		
 		AMethodDeclCG preCondMethod = condMeetsPreCondMethod(node.getCallStm().clone());
 		
@@ -159,22 +149,27 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 		}
 
 		callStmCreation.getMethods().add(consExecuteMethod(node.getCallStm().clone()));
-		callStmCreation.getMethods().add(toStringBuilder.consToString(getInfo(), node.getCallStm(), storeAssistant.getIdConstNameMap(), storeAssistant, transAssistant));
-		AVarDeclCG callStmDecl = transAssistant.consDecl(callStmName, callStmType.clone(), callStmCreation);
+		callStmCreation.getMethods().add(traceTrans.getToStringBuilder().consToString(getInfo(), node.getCallStm(), storeAssistant.getIdConstNameMap(), storeAssistant, getTransAssist()));
+		AVarDeclCG callStmDecl = getTransAssist().consDecl(callStmName, callStmType.clone(), callStmCreation);
 
-		AClassTypeCG stmTraceNodeType = transAssistant.consClassType(tracePrefixes.stmTraceNodeClassName());
-		ANewExpCG newStmTraceNodeExp = transAssistant.consDefaultConsCall(stmTraceNodeType);
-		newStmTraceNodeExp.getArgs().add(transAssistant.getInfo().getExpAssistant().consIdVar(callStmName, callStmType.clone()));
+		AClassTypeCG stmTraceNodeType = getTransAssist().consClassType(traceTrans.getTracePrefixes().stmTraceNodeClassName());
+		ANewExpCG newStmTraceNodeExp = getTransAssist().consDefaultConsCall(stmTraceNodeType);
+		newStmTraceNodeExp.getArgs().add(getInfo().getExpAssistant().consIdVar(callStmName, callStmType.clone()));
 
-		String stmNodeName = getInfo().getTempVarNameGen().nextVarName(tracePrefixes.stmTraceNodeNamePrefix());
-		AVarDeclCG stmNodeDecl = transAssistant.consDecl(stmNodeName, stmTraceNodeType.clone(), newStmTraceNodeExp);
+		String stmNodeName = getInfo().getTempVarNameGen().nextVarName(traceTrans.getTracePrefixes().stmTraceNodeNamePrefix());
+		AVarDeclCG stmNodeDecl = getTransAssist().consDecl(stmNodeName, stmTraceNodeType.clone(), newStmTraceNodeExp);
 
 		ABlockStmCG decls = new ABlockStmCG();
-		decls.getLocalDefs().addAll(argDecls);
+		
+		if(!argDecls.isEmpty())
+		{
+			decls.getLocalDefs().addAll(argDecls);
+		}
+		
 		decls.getLocalDefs().add(callStmDecl);
 		decls.getLocalDefs().add(stmNodeDecl);
 
-		return new TraceNodeData(transAssistant.getInfo().getExpAssistant().consIdVar(stmNodeName, stmTraceNodeType.clone()), decls);
+		return new TraceNodeData(getInfo().getExpAssistant().consIdVar(stmNodeName, stmTraceNodeType.clone()), decls, decls);
 	}
 
 	@Override
@@ -188,11 +183,11 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 	public TraceNodeData caseAConcurrentExpTraceCoreDeclCG(
 			AConcurrentExpTraceCoreDeclCG node) throws AnalysisException
 	{
-		String name = getInfo().getTempVarNameGen().nextVarName(tracePrefixes.concTraceNodeNamePrefix());
+		String name = getInfo().getTempVarNameGen().nextVarName(traceTrans.getTracePrefixes().concTraceNodeNamePrefix());
 
-		AClassTypeCG classType = transAssistant.consClassType(tracePrefixes.concTraceNodeNodeClassName());
+		AClassTypeCG classType = getTransAssist().consClassType(traceTrans.getTracePrefixes().concTraceNodeNodeClassName());
 
-		AVarDeclCG concNodeDecl = transAssistant.consDecl(name, classType, transAssistant.consDefaultConsCall(classType));
+		AVarDeclCG concNodeDecl = getTransAssist().consDecl(name, classType, getTransAssist().consDefaultConsCall(classType));
 
 		ABlockStmCG stms = new ABlockStmCG();
 		stms.getLocalDefs().add(concNodeDecl);
@@ -203,63 +198,65 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 		for (STraceDeclCG term : node.getDecls())
 		{
 			TraceNodeData nodeData = term.apply(this);
-			stms.getStatements().add(nodeData.getStms());
-
 			AIdentifierVarExpCG var = nodeData.getNodeVar();
-			addStms.add(transAssistant.consInstanceCallStm(classType, name, tracePrefixes.addMethodName(), var));
+			nodeData.getNodeVarScope().getStatements().add(getTransAssist().consInstanceCallStm(classType, name, traceTrans.getTracePrefixes().addMethodName(), var));
+			
+			stms.getStatements().add(nodeData.getStms());
 		}
 
 		stms.getStatements().addAll(addStms);
 
-		return new TraceNodeData(transAssistant.getInfo().getExpAssistant().consIdVar(name, classType.clone()), stms);
+		return new TraceNodeData(getInfo().getExpAssistant().consIdVar(name, classType.clone()), stms, stms);
 	}
-
+	
 	@Override
 	public TraceNodeData caseALetBeStBindingTraceDeclCG(
 			ALetBeStBindingTraceDeclCG node) throws AnalysisException
 	{
-
 		ASetMultipleBindCG bind = node.getBind();
 		
 		IdentifierPatternCollector idCollector = new IdentifierPatternCollector();
 		idCollector.setTopNode(bind);
-		List<AIdentifierPatternCG> patterns = idCollector.findOccurences();
 		
-		for(SPatternCG p : patterns)
+		if(Settings.dialect != Dialect.VDM_SL)
 		{
-			if(p instanceof AIdentifierPatternCG)
+			List<AIdentifierPatternCG> patterns = idCollector.findOccurences();
+
+			for (AIdentifierPatternCG p : patterns)
 			{
-				String idConstName = getInfo().getTempVarNameGen().nextVarName(tracePrefixes.idConstNamePrefix());
+				String idConstName = getInfo().getTempVarNameGen().nextVarName(traceTrans.getTracePrefixes().idConstNamePrefix());
 				storeAssistant.getIdConstNameMap().put(((AIdentifierPatternCG) p).getName(), idConstName);
 			}
 		}
 		
-		String name = getInfo().getTempVarNameGen().nextVarName(tracePrefixes.altTraceNodeNamePrefix());
+		String name = getInfo().getTempVarNameGen().nextVarName(traceTrans.getTracePrefixes().altTraceNodeNamePrefix());
 
-		AClassTypeCG classType = transAssistant.consClassType(tracePrefixes.altTraceNodeNodeClassName());
+		AClassTypeCG classType = getTransAssist().consClassType(traceTrans.getTracePrefixes().altTraceNodeNodeClassName());
 
 		AIdentifierPatternCG id = getInfo().getPatternAssistant().consIdPattern(name);
 
-		AVarDeclCG altTests = transAssistant.consDecl(name, classType, transAssistant.consDefaultConsCall(classType));
+		AVarDeclCG altTests = getTransAssist().consDecl(name, classType, getTransAssist().consDefaultConsCall(classType));
 
 		STraceDeclCG body = node.getBody();
 		SExpCG exp = node.getStExp();
 
 		TraceNodeData bodyTraceData = body.apply(this);
 
-		SSetTypeCG setType = transAssistant.getSetTypeCloned(bind.getSet());
-		TraceLetBeStStrategy strategy = new TraceLetBeStStrategy(transAssistant, exp, setType, langIterator, 
-				getInfo().getTempVarNameGen(), iteVarPrefixes, storeAssistant, storeAssistant.getIdConstNameMap(), tracePrefixes, id, altTests, bodyTraceData);
+		SSetTypeCG setType = getTransAssist().getSetTypeCloned(bind.getSet());
+		TraceLetBeStStrategy strategy = new TraceLetBeStStrategy(getTransAssist(), exp, setType, traceTrans.getLangIterator(), 
+				getInfo().getTempVarNameGen(), traceTrans.getIteVarPrefixes(), storeAssistant, storeAssistant.getIdConstNameMap(), traceTrans.getTracePrefixes(), id, altTests, bodyTraceData, this);
 
-		if (transAssistant.hasEmptySet(bind))
+		if (getTransAssist().hasEmptySet(bind))
 		{
-			transAssistant.cleanUpBinding(bind);
-			return new TraceNodeData(null, transAssistant.wrap(new ASkipStmCG()));
+			getTransAssist().cleanUpBinding(bind);
+			
+			ABlockStmCG skip = getTransAssist().wrap(new ASkipStmCG());
+			return new TraceNodeData(null, skip, skip);
 		}
 
-		ABlockStmCG outerBlock = transAssistant.consIterationBlock(node.getBind().getPatterns(), bind.getSet(), getInfo().getTempVarNameGen(), strategy, iteVarPrefixes);
+		ABlockStmCG outerBlock = getTransAssist().consIterationBlock(node.getBind().getPatterns(), bind.getSet(), getInfo().getTempVarNameGen(), strategy, traceTrans.getIteVarPrefixes());
 
-		return new TraceNodeData(transAssistant.getInfo().getExpAssistant().consIdVar(name, classType.clone()), transAssistant.wrap(outerBlock));
+		return new TraceNodeData(getInfo().getExpAssistant().consIdVar(name, classType.clone()), outerBlock, outerBlock);
 	}
 	
 	@Override
@@ -267,14 +264,20 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 			ALetDefBindingTraceDeclCG node) throws AnalysisException
 	{
 		ABlockStmCG outer = new ABlockStmCG();
+		outer.setScoped(true);
 		
 		IdentifierPatternCollector idCollector = new IdentifierPatternCollector();
 		
 		ABlockStmCG declBlock = new ABlockStmCG();
-		declBlock.setScoped(true);
-
+		
+		List<AIdentifierVarExpCG> traceVars = new LinkedList<>();
+		
 		for (AVarDeclCG dec : node.getLocalDefs())
 		{
+			// Find types for all sub patterns
+			PatternTypeFinder typeFinder = new PatternTypeFinder(getInfo());
+			dec.getPattern().apply(typeFinder, dec.getType());
+			
 			idCollector.setTopNode(dec);
 			List<AIdentifierPatternCG> idOccurences = idCollector.findOccurences();
 			
@@ -284,18 +287,33 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 			
 			for(AIdentifierPatternCG occ : idOccurences)
 			{
-				String idConstName = getInfo().getTempVarNameGen().nextVarName(tracePrefixes.idConstNamePrefix());
-				storeAssistant.getIdConstNameMap().put(occ.getName(), idConstName);
-				outer.getLocalDefs().add(storeAssistant.consIdConstDecl(idConstName));
-				storeAssistant.appendStoreRegStms(declBlock, occ.getName(), idConstName, false);
+				if(Settings.dialect != Dialect.VDM_SL)
+				{
+					String idConstName = getInfo().getTempVarNameGen().nextVarName(traceTrans.getTracePrefixes().idConstNamePrefix());
+					storeAssistant.getIdConstNameMap().put(occ.getName(), idConstName);
+					outer.getLocalDefs().add(storeAssistant.consIdConstDecl(idConstName));
+					storeAssistant.appendStoreRegStms(declBlock, occ.getName(), idConstName, false);
+				}
+				
+				traceVars.add(getInfo().getExpAssistant().consIdVar(occ.getName(), PatternTypeFinder.getType(typeFinder, occ)));
 			}
 		}
+		
 		TraceNodeData bodyNodeData = node.getBody().apply(this);
 
+		for(int i = traceVars.size() - 1; i >= 0; i--)
+		{
+			AIdentifierVarExpCG a = traceVars.get(i);
+			
+			ACallObjectExpStmCG addVar = consAddTraceVarCall(bodyNodeData.getNodeVar(), a);
+			ensureStoreLookups(addVar);
+			bodyNodeData.getNodeVarScope().getStatements().add(addVar);
+		}
+		
 		outer.getStatements().add(declBlock);
 		outer.getStatements().add(bodyNodeData.getStms());
 		
-		return new TraceNodeData(bodyNodeData.getNodeVar(), outer);
+		return new TraceNodeData(bodyNodeData.getNodeVar(), outer, bodyNodeData.getNodeVarScope());
 	}
 
 	@Override
@@ -310,7 +328,7 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 			return node.getCore().apply(this);
 		} else
 		{
-			String name = getInfo().getTempVarNameGen().nextVarName(tracePrefixes.repeatTraceNodeNamePrefix());
+			String name = getInfo().getTempVarNameGen().nextVarName(traceTrans.getTracePrefixes().repeatTraceNodeNamePrefix());
 
 			TraceNodeData traceData = node.getCore().apply(this);
 
@@ -318,20 +336,35 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 			AIntLiteralExpCG fromArg = getInfo().getExpAssistant().consIntLiteral(from);
 			AIntLiteralExpCG toArg = getInfo().getExpAssistant().consIntLiteral(to);
 
-			AClassTypeCG repeat = transAssistant.consClassType(tracePrefixes.repeatTraceNodeNamePrefix());
+			AClassTypeCG repeat = getTransAssist().consClassType(traceTrans.getTracePrefixes().repeatTraceNodeNamePrefix());
 
 			ABlockStmCG block = new ABlockStmCG();
 			block.getStatements().add(traceData.getStms());
-			block.getStatements().add(consDecl(tracePrefixes.repeatTraceNodeNodeClassName(), name, varArg, fromArg, toArg));
+			block.getStatements().add(consDecl(traceTrans.getTracePrefixes().repeatTraceNodeNodeClassName(), name, varArg, fromArg, toArg));
 
-			return new TraceNodeData(transAssistant.getInfo().getExpAssistant().consIdVar(name, repeat), block);
+			return new TraceNodeData(getInfo().getExpAssistant().consIdVar(name, repeat), block, block);
 		}
 	}
 
-	private List<AVarDeclCG> replaceArgsWithVars(SStmCG callStm)
+	/**
+	 * Assumes dialect is VDM-SL. This method does not work with store lookups for local variables and since code
+	 * generated VDM-SL traces do not rely on this then it is safe to use this method for this dialect.
+	 * 
+	 * @param callStm
+	 *            the call statement for which we want to replace the arguments with variables
+	 * @return the variable declarations corresponding to the variables that replace the arguments
+	 */
+	protected List<AVarDeclCG> replaceArgsWithVars(SStmCG callStm)
 	{
-		List<SExpCG> args = null;
 		List<AVarDeclCG> decls = new LinkedList<AVarDeclCG>();
+		
+		if(Settings.dialect != Dialect.VDM_SL)
+		{
+			return decls;
+		}
+		
+		List<SExpCG> args = null;
+		
 		if (callStm instanceof SCallStmCG)
 		{
 			args = ((SCallStmCG) callStm).getArgs();
@@ -347,24 +380,20 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 
 		for (SExpCG arg : args)
 		{
-			if (!(arg instanceof SVarExpCG))
-			{
-				String argName = getInfo().getTempVarNameGen().nextVarName(tracePrefixes.callStmArgNamePrefix());
-				STypeCG type = arg.getType();
+			String argName = getInfo().getTempVarNameGen().nextVarName(traceTrans.getTracePrefixes().callStmArgNamePrefix());
+			STypeCG type = arg.getType();
 
-				AVarDeclCG argDecl = transAssistant.consDecl(argName, type.clone(), arg.clone());
-				argDecl.setFinal(true);
-				decls.add(argDecl);
+			AVarDeclCG argDecl = getTransAssist().consDecl(argName, type.clone(), arg.clone());
+			argDecl.setFinal(true);
+			decls.add(argDecl);
 
-				transAssistant.replaceNodeWith(arg, transAssistant.getInfo().getExpAssistant().consIdVar(argName, type.clone()));
-			}
-
+			getTransAssist().replaceNodeWith(arg, getInfo().getExpAssistant().consIdVar(argName, type.clone()));
 		}
 
 		return decls;
 	}
 	
-	private AMethodDeclCG consExecuteMethod(SStmCG stm)
+	protected AMethodDeclCG consExecuteMethod(SStmCG stm)
 	{
 		AMethodTypeCG methodType = new AMethodTypeCG();
 		methodType.setResult(new AObjectTypeCG());
@@ -376,21 +405,26 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 		execMethod.setAsync(false);
 		execMethod.setIsConstructor(false);
 		execMethod.setMethodType(methodType);
-		execMethod.setName(tracePrefixes.callStmExecMethodNamePrefix());
+		execMethod.setName(traceTrans.getTracePrefixes().callStmExecMethodNamePrefix());
 		execMethod.setStatic(false);
 
 		ABlockStmCG body = new ABlockStmCG();
 		body.getStatements().add(makeInstanceCall(stm));
 		
-		useStoreLookups(body);
+		ensureStoreLookups(body);
 		
 		execMethod.setBody(body);
 		
 		return execMethod;
 	}
 
-	private void useStoreLookups(SStmCG body)
+	protected void ensureStoreLookups(SStmCG body)
 	{
+		if(Settings.dialect == Dialect.VDM_SL)
+		{
+			return;
+		}
+		
 		try
 		{
 			final Set<String> localVarNames = storeAssistant.getIdConstNameMap().keySet();
@@ -405,7 +439,7 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 				{
 					if(localVarNames.contains(node.getName()))
 					{
-						transAssistant.replaceNodeWith(node, storeAssistant.consStoreLookup(node));
+						getTransAssist().replaceNodeWith(node, storeAssistant.consStoreLookup(node));
 					}
 				}
 			});
@@ -419,16 +453,14 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 	public TraceNodeData buildFromDeclTerms(List<ATraceDeclTermCG> terms)
 			throws AnalysisException
 	{
-		String name = getInfo().getTempVarNameGen().nextVarName(tracePrefixes.seqTraceNodeNamePrefix());
+		String name = getInfo().getTempVarNameGen().nextVarName(traceTrans.getTracePrefixes().seqTraceNodeNamePrefix());
 
-		AClassTypeCG classType = transAssistant.consClassType(tracePrefixes.seqClassTypeName());
+		AClassTypeCG classType = getTransAssist().consClassType(traceTrans.getTracePrefixes().seqClassTypeName());
 
-		AVarDeclCG seqNodeDecl = transAssistant.consDecl(name, classType, transAssistant.consDefaultConsCall(classType));
+		AVarDeclCG seqNodeDecl = getTransAssist().consDecl(name, classType, getTransAssist().consDefaultConsCall(classType));
 
 		ABlockStmCG stms = new ABlockStmCG();
 		stms.getLocalDefs().add(seqNodeDecl);
-
-		List<SStmCG> addStms = new LinkedList<SStmCG>();
 
 		for (ATraceDeclTermCG term : terms)
 		{
@@ -436,46 +468,34 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 			stms.getStatements().add(nodeData.getStms());
 
 			AIdentifierVarExpCG var = nodeData.getNodeVar();
-			addStms.add(transAssistant.consInstanceCallStm(classType, name, tracePrefixes.addMethodName(), var));
+			nodeData.getNodeVarScope().getStatements().add(getTransAssist().consInstanceCallStm(classType, name, traceTrans.getTracePrefixes().addMethodName(), var));
 		}
 
-		stms.getStatements().addAll(addStms);
-
-		return new TraceNodeData(transAssistant.getInfo().getExpAssistant().consIdVar(name, classType.clone()), stms);
+		return new TraceNodeData(getInfo().getExpAssistant().consIdVar(name, classType.clone()), stms, stms);
 	}
-
-	private AMethodDeclCG condMeetsPreCondMethod(SStmCG stm)
+	
+	public AMethodDeclCG consTypeCheckMethod(SStmCG stm)
 	{
-		// This only works for VDM-SL
-		if (Settings.dialect != Dialect.VDM_SL || !transAssistant.getInfo().getSettings().generatePreConds())
+		return null;
+	}
+	
+	public AMethodDeclCG condMeetsPreCondMethod(SStmCG stm)
+	{
+		if (!canBeGenerated())
 		{
 			return null;
 		}
 
-		AMethodTypeCG methodType = new AMethodTypeCG();
-		methodType.setResult(new ABoolBasicTypeCG());
-
-		AMethodDeclCG meetsPredMethod = new AMethodDeclCG();
-		meetsPredMethod.setImplicit(false);
-		meetsPredMethod.setAbstract(false);
-		meetsPredMethod.setAccess(IRConstants.PUBLIC);
-		meetsPredMethod.setAsync(false);
-		meetsPredMethod.setIsConstructor(false);
-		meetsPredMethod.setMethodType(methodType);
-		meetsPredMethod.setName(tracePrefixes.callStmMeetsPreCondNamePrefix());
-		meetsPredMethod.setStatic(false);
+		AMethodDeclCG meetsPredMethod = initPredDecl(traceTrans.getTracePrefixes().callStmMeetsPreCondNamePrefix());
 
 		boolean isOp = false;
 		String pre = "pre_";
 		List<SExpCG> args = null;
 
-		/**
-		 * We don't need to consider the 'ACallObjectExpStmCG' since it only appears in the IR if we code generate a PP
-		 * or RT model
-		 */
 		if (stm instanceof APlainCallStmCG)
 		{
 			APlainCallStmCG plainCall = (APlainCallStmCG) stm;
+			args = plainCall.getArgs();
 			SourceNode source = plainCall.getSourceNode();
 			if (source != null)
 			{
@@ -496,6 +516,16 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 
 						isOp = true;
 					}
+					else if(callStm.getRootdef() instanceof SFunctionDefinition)
+					{
+						SFunctionDefinition func = (SFunctionDefinition) callStm.getRootdef();
+						
+						if(func.getPredef() == null)
+						{
+							// The pre condition is true
+							return null;
+						}
+					}
 				} else
 				{
 					Logger.getLog().printErrorln("Expected VDM source node to be a call statement at this point in '"
@@ -509,7 +539,6 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 
 			plainCall.setName(pre + plainCall.getName());
 			plainCall.setType(new ABoolBasicTypeCG());
-			args = plainCall.getArgs();
 
 			meetsPredMethod.setBody(plainCall);
 		} else
@@ -520,59 +549,61 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 			return null;
 		}
 
-		if (args != null && isOp)
+		if (args != null)
 		{
-			DeclAssistantCG dAssist = this.transAssistant.getInfo().getDeclAssistant();
-			String invokedModule = getInvokedModule(stm);
-			SClassDeclCG clazz = dAssist.findClass(transAssistant.getInfo().getClasses(), invokedModule);
-
-			for (AFieldDeclCG f : clazz.getFields())
+			if (isOp)
 			{
-				if (!f.getFinal())
+				DeclAssistantCG dAssist = this.getInfo().getDeclAssistant();
+				String invokedModule = getInvokedModule(stm);
+				SClassDeclCG clazz = dAssist.findClass(getInfo().getClasses(), invokedModule);
+
+				for (AFieldDeclCG f : clazz.getFields())
 				{
-					// It's the state component
-
-					if(traceEnclosingClass.equals(invokedModule))
+					if (!f.getFinal())
 					{
-						ExpAssistantCG eAssist = transAssistant.getInfo().getExpAssistant();
-						AIdentifierVarExpCG stateArg = eAssist.consIdVar(f.getName(), f.getType().clone());
-						args.add(stateArg);
-					}
-					else
-					{
-						AExternalTypeCG traceNodeClassType = new AExternalTypeCG();
-						traceNodeClassType.setName(tracePrefixes.traceUtilClassName());
-						
-						AExplicitVarExpCG readStateMethod = new AExplicitVarExpCG();
-						readStateMethod.setClassType(traceNodeClassType);
-						readStateMethod.setIsLambda(false);
-						readStateMethod.setIsLocal(false);
-						readStateMethod.setName(tracePrefixes.readStateMethodName());
+						// It's the state component
+						if (traceEnclosingClass.equals(invokedModule))
+						{
+							ExpAssistantCG eAssist = getInfo().getExpAssistant();
+							AIdentifierVarExpCG stateArg = eAssist.consIdVar(f.getName(), f.getType().clone());
+							traceTrans.getCloneFreeNodes().add(stateArg);
+							args.add(stateArg);
+						} else
+						{
+							AExternalTypeCG traceNodeClassType = new AExternalTypeCG();
+							traceNodeClassType.setName(traceTrans.getTracePrefixes().traceUtilClassName());
 
-						AMethodTypeCG readStateMethodType = new AMethodTypeCG();
-						readStateMethodType.setResult(f.getType().clone());
-						readStateMethodType.getParams().add(transAssistant.consClassType(invokedModule));
-						readStateMethodType.getParams().add(f.getType().clone());
-						
-						readStateMethod.setType(readStateMethodType);
-						
-						AApplyExpCG readStateCall = new AApplyExpCG();
-						readStateCall.setRoot(readStateMethod);
-						readStateCall.setType(f.getType().clone());
-						
-						ATypeArgExpCG moduleArg = new ATypeArgExpCG();
-						moduleArg.setType(transAssistant.consClassType(invokedModule));
-						
-						ATypeArgExpCG stateArg = new ATypeArgExpCG();
-						stateArg.setType(f.getType().clone());
-						
-						readStateCall.getArgs().add(moduleArg);
-						readStateCall.getArgs().add(stateArg);
-						
-						args.add(readStateCall);
+							AExplicitVarExpCG readStateMethod = new AExplicitVarExpCG();
+							readStateMethod.setClassType(traceNodeClassType);
+							readStateMethod.setIsLambda(false);
+							readStateMethod.setIsLocal(false);
+							readStateMethod.setName(traceTrans.getTracePrefixes().readStateMethodName());
+
+							AMethodTypeCG readStateMethodType = new AMethodTypeCG();
+							readStateMethodType.setResult(f.getType().clone());
+							readStateMethodType.getParams().add(getTransAssist().consClassType(invokedModule));
+							readStateMethodType.getParams().add(f.getType().clone());
+
+							readStateMethod.setType(readStateMethodType);
+
+							AApplyExpCG readStateCall = new AApplyExpCG();
+							readStateCall.setRoot(readStateMethod);
+							readStateCall.setType(f.getType().clone());
+
+							ATypeArgExpCG moduleArg = new ATypeArgExpCG();
+							moduleArg.setType(getTransAssist().consClassType(invokedModule));
+
+							ATypeArgExpCG stateArg = new ATypeArgExpCG();
+							stateArg.setType(f.getType().clone());
+
+							readStateCall.getArgs().add(moduleArg);
+							readStateCall.getArgs().add(stateArg);
+
+							args.add(readStateCall);
+						}
+
+						break;
 					}
-					
-					break;
 				}
 			}
 		} else
@@ -581,12 +612,36 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 					+ "'");
 		}
 
-		useStoreLookups(meetsPredMethod.getBody());
+		ensureStoreLookups(meetsPredMethod.getBody());
 
 		return meetsPredMethod;
 	}
 	
-	private String getInvokedModule(SStmCG stm)
+	protected AMethodDeclCG initPredDecl(String name)
+	{
+		AMethodTypeCG methodType = new AMethodTypeCG();
+		methodType.setResult(new ABoolBasicTypeCG());
+		
+		AMethodDeclCG meetsPredMethod = new AMethodDeclCG();
+		meetsPredMethod.setImplicit(false);
+		meetsPredMethod.setAbstract(false);
+		meetsPredMethod.setAccess(IRConstants.PUBLIC);
+		meetsPredMethod.setAsync(false);
+		meetsPredMethod.setIsConstructor(false);
+		meetsPredMethod.setMethodType(methodType);
+		meetsPredMethod.setStatic(false);
+		meetsPredMethod.setName(name);
+		
+		return meetsPredMethod;
+	}
+
+	protected boolean canBeGenerated()
+	{
+		// This only works for VDM-SL
+		return Settings.dialect == Dialect.VDM_SL && getInfo().getSettings().generatePreConds();
+	}
+	
+	protected String getInvokedModule(SStmCG stm)
 	{
 		if(stm instanceof APlainCallStmCG)
 		{
@@ -603,7 +658,7 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 		return traceEnclosingClass;
 	}
 
-	private SStmCG makeInstanceCall(SStmCG stm)
+	protected SStmCG makeInstanceCall(SStmCG stm)
 	{
 		if(stm instanceof ACallObjectExpStmCG)
 		{
@@ -616,13 +671,18 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 			
 			try
 			{
-				call.getObj().apply(new CallObjTraceLocalizer(transAssistant, tracePrefixes, traceEnclosingClass));
+				call.getObj().apply(new CallObjTraceLocalizer(getTransAssist(), traceTrans.getTracePrefixes(), traceEnclosingClass));
 			} catch (AnalysisException e)
 			{
 				Logger.getLog().printErrorln("Got unexpected problem when trying to apply "
-						+ CallObjTraceLocalizer.class.getSimpleName() + " in '" + this.getClass().getSimpleName());
+						+ CallObjTraceLocalizer.class.getSimpleName() + " in '" + this.getClass().getSimpleName() + "'");
 				e.printStackTrace();
 			}
+			
+			/**
+			 * We don't narrow the types of the arguments, which we should and which we do for the 'APlainCallStmCG'
+			 * case using <code>castArgs(call);</code>. Code generation of traces does not really work for PP..
+			 */
 			
 			if(call.getType() instanceof AVoidTypeCG)
 			{
@@ -653,17 +713,17 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 		return stm;
 	}
 
-	private SStmCG handleVoidValueReturn(SStmCG stm)
+	protected SStmCG handleVoidValueReturn(SStmCG stm)
 	{
 		AExternalTypeCG traceNodeClassType = new AExternalTypeCG();
-		traceNodeClassType.setName(tracePrefixes.voidValueEnclosingClassName());
+		traceNodeClassType.setName(traceTrans.getTracePrefixes().voidValueEnclosingClassName());
 
 		AExplicitVarExpCG voidValue = new AExplicitVarExpCG();
 		voidValue.setType(new AObjectTypeCG());
 		voidValue.setClassType(traceNodeClassType);
 		voidValue.setIsLambda(false);
 		voidValue.setIsLocal(true);
-		voidValue.setName(tracePrefixes.voidValueFieldName());
+		voidValue.setName(traceTrans.getTracePrefixes().voidValueFieldName());
 
 		AReturnStmCG returnVoidVal = new AReturnStmCG();
 		returnVoidVal.setExp(voidValue);
@@ -676,7 +736,7 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 		return block;
 	}
 
-	private SStmCG handlePlainCallStm(APlainCallStmCG callStmCG)
+	protected SStmCG handlePlainCallStm(APlainCallStmCG callStmCG)
 			throws AnalysisException
 	{
 		STypeCG type = callStmCG.getType();
@@ -698,11 +758,11 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 		
 		SourceNode sourceNode = callStmCG.getSourceNode();
 
-		AClassTypeCG consClassType = transAssistant.consClassType(traceEnclosingClass);
+		AClassTypeCG consClassType = getTransAssist().consClassType(traceEnclosingClass);
 
 		ACastUnaryExpCG cast = new ACastUnaryExpCG();
 		cast.setType(consClassType);
-		cast.setExp(transAssistant.getInfo().getExpAssistant().consIdVar(tracePrefixes.callStmMethodParamName(), consClassType.clone()));
+		cast.setExp(getInfo().getExpAssistant().consIdVar(traceTrans.getTracePrefixes().callStmMethodParamName(), consClassType.clone()));
 
 		if (type instanceof AVoidTypeCG)
 		{
@@ -739,11 +799,11 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 				apply.getArgs().add(arg.clone());
 			}
 
-			String resultName = getInfo().getTempVarNameGen().nextVarName(tracePrefixes.callStmResultNamePrefix());
-			AVarDeclCG resultDecl = transAssistant.consDecl(resultName, type.clone(), apply);
+			String resultName = getInfo().getTempVarNameGen().nextVarName(traceTrans.getTracePrefixes().callStmResultNamePrefix());
+			AVarDeclCG resultDecl = getTransAssist().consDecl(resultName, type.clone(), apply);
 
 			AReturnStmCG returnStm = new AReturnStmCG();
-			returnStm.setExp(transAssistant.getInfo().getExpAssistant().consIdVar(resultName, type.clone()));
+			returnStm.setExp(getInfo().getExpAssistant().consIdVar(resultName, type.clone()));
 
 			ABlockStmCG stms = new ABlockStmCG();
 			stms.getLocalDefs().add(resultDecl);
@@ -754,12 +814,12 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 		}
 	}
 
-	private ABlockStmCG consDecl(String classTypeName, String varName,
+	protected ABlockStmCG consDecl(String classTypeName, String varName,
 			SExpCG... args)
 	{
-		ATypeNameCG typeName = transAssistant.consTypeNameForClass(classTypeName);
+		ATypeNameCG typeName = getTransAssist().consTypeNameForClass(classTypeName);
 
-		AClassTypeCG classType = transAssistant.consClassType(classTypeName);
+		AClassTypeCG classType = getTransAssist().consClassType(classTypeName);
 
 		ANewExpCG newExp = new ANewExpCG();
 		newExp.setName(typeName);
@@ -770,9 +830,27 @@ public class TraceStmBuilder extends AnswerAdaptor<TraceNodeData>
 			newExp.getArgs().add(arg);
 		}
 
-		return transAssistant.wrap(transAssistant.consDecl(varName, classType.clone(), newExp));
+		return getTransAssist().wrap(getTransAssist().consDecl(varName, classType.clone(), newExp));
 	}
 
+	public ACallObjectExpStmCG consAddTraceVarCall(AIdentifierVarExpCG subject, AIdentifierVarExpCG t)
+	{
+		ANewExpCG newVar = new ANewExpCG();
+		newVar.setName(getTransAssist().consTypeNameForClass(traceTrans.getTracePrefixes().traceVarClassName()));
+		newVar.setType(getTransAssist().consClassType(traceTrans.getTracePrefixes().traceVarClassName()));
+		
+		newVar.getArgs().add(getInfo().getExpAssistant().consStringLiteral(t.getName(), false));
+		newVar.getArgs().add(getInfo().getExpAssistant().consStringLiteral("" + getTransAssist().getInfo().getTypeAssistant().getVdmType(t.getType()), false));
+		newVar.getArgs().add(traceTrans.getToStringBuilder().toStringOf(t.clone()));
+		
+		return getTransAssist().consInstanceCallStm(subject.getType(), subject.getName(), traceTrans.getTracePrefixes().addVarFirstMethodName(), newVar);
+	}
+
+	private TransAssistantCG getTransAssist()
+	{
+		return traceTrans.getTransAssist();
+	}
+	
 	@Override
 	public TraceNodeData createNewReturnValue(INode node)
 			throws AnalysisException

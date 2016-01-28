@@ -38,6 +38,7 @@ import org.overture.ast.types.AOptionalType;
 import org.overture.ast.types.AProductType;
 import org.overture.ast.types.ASeq1SeqType;
 import org.overture.ast.types.AUnionType;
+import org.overture.ast.types.AUnknownType;
 import org.overture.ast.types.PType;
 import org.overture.ast.types.SSeqTypeBase;
 import org.overture.ast.util.PTypeSet;
@@ -238,6 +239,35 @@ public class TypeAssistantCG extends AssistantBase
 		SClassDeclCG classDecl = assistantManager.getDeclAssistant().findClass(classes, moduleName);
 		return getFieldType(classDecl, fieldName, classes);
 	}
+	
+	public boolean compatible(IRInfo info, STypeCG left, STypeCG right)
+	{
+		SourceNode leftSource = left.getSourceNode();
+		SourceNode rightSource = right.getSourceNode();
+		
+		if (leftSource == null || rightSource == null)
+		{
+			return false;
+		}
+		
+		org.overture.ast.node.INode leftType = leftSource.getVdmNode();
+		org.overture.ast.node.INode rightType = rightSource.getVdmNode();
+
+		if (!(leftType instanceof PType)
+				|| !(rightType instanceof PType))
+		{
+			return false;
+		}
+		
+		TypeComparator typeComparator = info.getTcFactory().getTypeComparator();
+		
+		if (!typeComparator.compatible((PType) leftType, (PType) rightType))
+		{
+			return false;
+		}
+		
+		return true;
+	}
 
 	public boolean checkArgTypes(IRInfo info, List<SExpCG> args,
 			List<STypeCG> paramTypes)
@@ -250,25 +280,10 @@ public class TypeAssistantCG extends AssistantBase
 
 		for (int i = 0; i < paramTypes.size(); i++)
 		{
-			SourceNode paramSourceNode = paramTypes.get(i).getSourceNode();
-			SourceNode argTypeSourceNode = args.get(i).getType().getSourceNode();
-
-			if (paramSourceNode == null || argTypeSourceNode == null)
-			{
-				return false;
-			}
-
-			org.overture.ast.node.INode paramTypeNode = paramSourceNode.getVdmNode();
-			org.overture.ast.node.INode argTypeNode = argTypeSourceNode.getVdmNode();
-
-			if (!(paramTypeNode instanceof PType)
-					|| !(argTypeNode instanceof PType))
-			{
-				return false;
-			}
-
-			TypeComparator typeComparator = info.getTcFactory().getTypeComparator();
-			if (!typeComparator.compatible((PType) paramTypeNode, (PType) argTypeNode))
+			STypeCG paramType = paramTypes.get(i);
+			STypeCG argType = args.get(i).getType();
+			
+			if(!compatible(info, paramType, argType))
 			{
 				return false;
 			}
@@ -816,5 +831,25 @@ public class TypeAssistantCG extends AssistantBase
 					&& (type instanceof AUnknownTypeCG || BooleanUtils.isTrue(type.getOptional()) || isWrapperType(type));
 		}
 		
+	}
+	
+	public PType getVdmType(STypeCG type)
+	{
+		SourceNode source = type.getSourceNode();
+		if(source != null)
+		{
+			org.overture.ast.node.INode vdmNode = source.getVdmNode();
+			
+			if(vdmNode != null)
+			{
+				if(vdmNode instanceof PType)
+				{
+					return (PType) vdmNode;
+				}
+			}
+		}
+		
+		Logger.getLog().printErrorln("Could not get VDM type of " + type + " in '" + this.getClass().getSimpleName() + "'");
+		return new AUnknownType();
 	}
 }

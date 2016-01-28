@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,15 +17,15 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
+import org.overture.codegen.tests.exec.util.ProcessResult;
+import org.overture.codegen.tests.util.JavaToolsUtils;
 import org.overture.codegen.utils.GeneralUtils;
 import org.overture.codegen.vdm2java.IJavaConstants;
 import org.overture.codegen.vdm2java.JavaCodeGenUtil;
-import org.overture.codegen.vdm2java.JavaToolsUtils;
 import org.overture.test.framework.Properties;
 import org.overture.vdm2jml.tests.AnnotationTestsBase;
 import org.overture.vdm2jml.tests.OpenJmlValidationBase;
 import org.overture.vdm2jml.tests.util.IOpenJmlConsts;
-import org.overture.vdm2jml.tests.util.ProcessResult;
 
 public abstract class JmlExecTestBase extends OpenJmlValidationBase
 {
@@ -56,7 +58,7 @@ public abstract class JmlExecTestBase extends OpenJmlValidationBase
 	@Test
 	public void execJml()
 	{
-		checkIfSkipped();
+		checkIfSkipped(inputFile.getName());
 		try
 		{
 			configureResultGeneration();
@@ -86,11 +88,16 @@ public abstract class JmlExecTestBase extends OpenJmlValidationBase
 		}
 	}
 
-	private void checkIfSkipped()
+	private void checkIfSkipped(String testName)
 	{
-		Assume.assumeFalse("OpenJML cannot compile this test - there is a bug", inputFile.getName().equals("Exists1.vdmsl"));
+		Assume.assumeFalse("OpenJML cannot compile this test - OpenJML has a bug", getSkippedTestsNames().contains(testName));
 	}
-
+	
+	protected List<String> getSkippedTestsNames()
+	{
+		return new LinkedList<>();
+	}
+	
 	protected void checkOpenJmlOutput(String actualRes) throws IOException
 	{
 		String expectedRes = GeneralUtils.readFromFile(getResultFile()).trim();
@@ -192,7 +199,7 @@ public abstract class JmlExecTestBase extends OpenJmlValidationBase
 		return processResult.getOutput();
 	}
 
-	protected String[] getTypeCheckArgs(File genJavaFolder)
+	protected static String[] getTypeCheckArgs(File genJavaFolder, File cgRuntime, File vdm2jmlRuntime, File openJml)
 	{
 		// Compiles files with runtime assertions in preparation to execution
 		// of the JML annotated Java code
@@ -218,7 +225,7 @@ public abstract class JmlExecTestBase extends OpenJmlValidationBase
 		return GeneralUtils.concat(openJmlConfig, javaFiles);
 	}
 
-	protected String[] getExecArgs()
+	protected static String[] getExecArgs(File genJavaFolder, File cgRuntime, File vdm2jmlRuntime, File openJml, File jmlRuntime)
 	{
 		// Executes the OpenJML runtime assertion checker
 		// java
@@ -281,10 +288,10 @@ public abstract class JmlExecTestBase extends OpenJmlValidationBase
 	{
 		if (!isTypeChecked)
 		{
-			return getTypeCheckArgs(genJavaFolder);
+			return getTypeCheckArgs(genJavaFolder, cgRuntime, vdm2jmlRuntime, openJml);
 		} else
 		{
-			return getExecArgs();
+			return getExecArgs(genJavaFolder, cgRuntime, vdm2jmlRuntime, openJml, jmlRuntime);
 		}
 	}
 }

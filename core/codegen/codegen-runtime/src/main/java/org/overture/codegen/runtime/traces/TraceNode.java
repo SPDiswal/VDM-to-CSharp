@@ -32,6 +32,25 @@ public abstract class TraceNode
 {
 	private static final int ENCLOSING_MODULE_ID = -1;
 	private static final Object NOT_AVAILABLE = new Object();
+	
+	private CallSequence traceVars;
+	
+	public TraceNode()
+	{
+		this.traceVars = new CallSequence();
+	}
+	
+	public void addVarFirst(TraceVariable var)
+	{
+		this.traceVars.add(0, var);
+	}
+	
+	public CallSequence getVars()
+	{
+		CallSequence c = new CallSequence();
+		c.addAll(traceVars);
+		return c;
+	}
 
 	@Override
 	abstract public String toString();
@@ -62,6 +81,11 @@ public abstract class TraceNode
 
 			for (CallSequence test : tests)
 			{
+				/**
+				 * We should reset the state before running the test in case the trace variable statements have modified
+				 * it, e.g. let a = opWithSideEffects() in ....
+				 */
+				store.reset();
 				List<String> callStms = new LinkedList<String>();
 				List<Object> callStmResults = new LinkedList<Object>();
 
@@ -76,7 +100,14 @@ public abstract class TraceNode
 					int callStmIdx = 0;
 					for (; callStmIdx < test.size(); callStmIdx++)
 					{
-						CallStatement callStm = test.get(callStmIdx);
+						Statement stm = test.get(callStmIdx);
+						
+						if(!(stm instanceof CallStatement))
+						{
+							continue;
+						}
+						
+						CallStatement callStm = (CallStatement) stm;
 						try
 						{
 							callStms.add(callStm.toString());
@@ -86,13 +117,8 @@ public abstract class TraceNode
 								((CallStatementPp) callStm).setInstance(store.getValue(ENCLOSING_MODULE_ID));
 							}
 
-							if (!callStm.isTypeCorrect())
-							{
-								// TODO: To be done. Consider where the right place is to check for this.
-								break;
-							}
-
-							if (!callStm.meetsPreCond())
+							// TODO: To be done. Consider where the right place is to check for this.
+							if (!callStm.isTypeCorrect() || !callStm.meetsPreCond())
 							{
 								// Inconclusive
 								callStmResults.add(NOT_AVAILABLE);
@@ -112,12 +138,11 @@ public abstract class TraceNode
 										- 1), " ; "), Verdict.PASSED));
 							}
 
-						} catch (RuntimeException e)
+						} catch (RuntimeException | AssertionError e)
 						{
 							for (int p = callStmIdx + 1; p < test.size(); p++)
 							{
-								CallStatement notCalled = test.get(callStmIdx);
-								callStms.add(notCalled.toString());
+								callStms.add(callStms.toString());
 							}
 
 							for (; callStmIdx < test.size(); callStmIdx++)
@@ -148,7 +173,6 @@ public abstract class TraceNode
 				callStmResults.clear();
 
 				testNo++;
-				store.reset();
 			}
 
 		} catch (InstantiationException e)
