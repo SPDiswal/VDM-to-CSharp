@@ -29,6 +29,7 @@
     <module>codegen-runtime</module>
     <module>codegen-maven-plugin</module>
     <module>isagen</module>
+    <module>csharpgen</module>
   </modules>
   
 </project>
