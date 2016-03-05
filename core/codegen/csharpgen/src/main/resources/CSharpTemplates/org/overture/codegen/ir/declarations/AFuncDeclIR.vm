@@ -1,0 +1,30 @@
+#set( $returnType = $formatter.visit($node.getMethodType().getResult()) )
+#set( $formalParameters = $formatter.join($formatter.visitAll($node.getFormalParams()), ", ") )
+#set( $parameterNames = $formatter.join($formatter.visitAll($formatter.extractNames($node.getFormalParams())), ", ") )
+        [Pure]
+        public static $returnType $node.getName()($formalParameters)
+        {
+#if( $node.getPreCond() )
+            Contract.Requires($node.getPreCond().getName()($parameterNames));
+#end
+#if( $node.getPostCond() )
+    #if( !$parameterNames.equals("") )
+            Contract.Ensures($node.getPostCond().getName()($parameterNames, Contract.Result<$returnType>()));
+    #else
+            Contract.Ensures($node.getPostCond().getName()(Contract.Result<$returnType>()));
+    #end
+#end
+#if( $node.getImplicit() )
+            throw new NotImplementedException();
+#else
+            return $formatter.visit($node.getBody());
+#end
+        }
+
+#if( $node.getPreCond() )
+$formatter.visit($node.getPreCond())
+#end
+
+#if( $node.getPostCond() )
+$formatter.visit($node.getPostCond())
+#end

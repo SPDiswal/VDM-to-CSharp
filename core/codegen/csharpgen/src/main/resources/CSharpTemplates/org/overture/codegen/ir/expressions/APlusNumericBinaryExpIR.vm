@@ -1,0 +1,1 @@
+$formatter.visit($node.getLeft()) + $formatter.visit($node.getRight())

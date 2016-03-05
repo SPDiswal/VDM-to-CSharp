@@ -1,0 +1,12 @@
+using System;
+using System.Diagnostics.Contracts;
+
+namespace VdmToCSharp
+{
+    public static class Default
+    {
+#foreach( $declaration in $node.getDecls() )
+$formatter.visit($declaration)
+#end
+    }
+}
