@@ -1,1 +1,5 @@
-int
+#if (!$node.getOptional())
+int##
+#else
+int?##
+#end

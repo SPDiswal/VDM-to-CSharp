@@ -7,7 +7,7 @@ import org.overture.codegen.ir.declarations.AModuleDeclIR
 import org.overture.codegen.merging.*
 import org.overture.codegen.utils.GeneratedData
 import org.overture.codegen.vdm2csharp.templates.*
-import org.overture.codegen.vdm2csharp.transformations.SeqOfCharToString
+import org.overture.codegen.vdm2csharp.transformations.*
 
 /**
  * The VDM-to-C# transcompiler translates VDM-SL modules to C# classes.

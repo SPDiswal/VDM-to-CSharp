@@ -1,1 +1,5 @@
-double
+#if (!$node.getOptional())
+double##
+#else
+double?##
+#end

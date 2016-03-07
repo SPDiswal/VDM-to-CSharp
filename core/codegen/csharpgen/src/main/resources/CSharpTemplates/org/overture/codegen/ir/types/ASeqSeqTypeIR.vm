@@ -1,1 +1,2 @@
-IList<$formatter.visit($node.getSeqOf())>
+#set( $inner = $formatter.visit($node.getSeqOf()) )
+IList<$inner>

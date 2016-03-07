@@ -1,1 +1,5 @@
-char
+#if (!$node.getOptional())
+char##
+#else
+char?##
+#end
