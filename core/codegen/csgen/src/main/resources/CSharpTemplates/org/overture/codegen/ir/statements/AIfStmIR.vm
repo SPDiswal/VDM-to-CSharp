@@ -1,0 +1,11 @@
+#set( $ifCondition = $template.visit($node.ifExp) )
+#set( $thenStatement = $template.visit($node.thenStm) )
+##
+#if($node.thenStm.class.simpleName == "AReturnStmIR" )
+    if ($ifCondition) $thenStatement##
+#else
+    if ($ifCondition)
+    {
+        $thenStatement
+    }
+#end

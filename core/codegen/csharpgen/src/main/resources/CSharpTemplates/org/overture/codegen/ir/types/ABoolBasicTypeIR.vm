@@ -1,5 +1,0 @@
-#if (!$node.getOptional())
-bool##
-#else
-bool?##
-#end

@@ -1,2 +1,0 @@
-#set( $inner = $formatter.join($formatter.visitAll($node.getTypes()), ", ") )
-Tuple<$inner>

@@ -1,3 +1,0 @@
-#set( $from = $formatter.visit($node.getFrom()) )
-#set( $to = $formatter.visit($node.getTo()) )
-IDictionary<$from, $to>

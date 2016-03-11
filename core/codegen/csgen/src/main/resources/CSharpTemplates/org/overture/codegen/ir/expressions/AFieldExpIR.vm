@@ -1,0 +1,4 @@
+#set( $objectQualifier = $template.visit($node.object) )
+#set( $propertyName = $node.memberName )
+##
+$objectQualifier.$propertyName

@@ -1,0 +1,7 @@
+#if( $node.optional )
+    #set( $nullableSyntax = "?" )
+#else
+    #set( $nullableSyntax = "" )
+#end
+##
+int$nullableSyntax

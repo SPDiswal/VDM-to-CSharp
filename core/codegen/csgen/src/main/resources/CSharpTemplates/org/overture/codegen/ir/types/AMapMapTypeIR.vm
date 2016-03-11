@@ -1,0 +1,4 @@
+#set( $from = $template.visit($node.from) )
+#set( $to = $template.visit($node.to) )
+##
+IDictionary<$from, $to>

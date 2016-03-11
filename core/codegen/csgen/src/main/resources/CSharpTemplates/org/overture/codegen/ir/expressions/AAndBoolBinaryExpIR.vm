@@ -1,0 +1,4 @@
+#set( $left = $template.visit($node.left) )
+#set( $right = $template.visit($node.right) )
+##
+$left && $right

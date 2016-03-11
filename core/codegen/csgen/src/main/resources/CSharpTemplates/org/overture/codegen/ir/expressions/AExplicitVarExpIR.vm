@@ -1,0 +1,8 @@
+#if( $node.classType )
+    #set( $qualifier = $template.visit($node.classType) + "." )
+#else
+    #set( $qualifier = "" )
+#end
+#set( $identifier = $node.name )
+##
+$qualifier$identifier

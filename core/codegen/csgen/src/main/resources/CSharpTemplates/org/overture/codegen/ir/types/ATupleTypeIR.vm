@@ -1,0 +1,3 @@
+#set( $items = $template.joinAll($node.types, ", ") )
+##
+Tuple<$items>

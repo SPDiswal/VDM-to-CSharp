@@ -1,0 +1,8 @@
+#if( $node.definingClass )
+    #set( $qualifier = $node.definingClass + "." )
+#else
+    #set( $qualifier = "" )
+#end
+#set( $name = $node.name )
+##
+$qualifier$name

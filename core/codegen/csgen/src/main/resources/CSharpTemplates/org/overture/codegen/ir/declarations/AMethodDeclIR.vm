@@ -1,0 +1,29 @@
+#set( $methodName = $node.name )
+#set( $methodReturnType = $template.visit($node.methodType.result) )
+#set( $methodParameters = $template.joinAll($node.formalParams, ", ") )
+##
+#if( $node.preCond )
+    #set( $precondition = $template.visit($node.preCond) )
+#else
+    #set( $precondition = "" )
+#end
+##
+#if( $node.postCond )
+    #set( $postcondition = $template.visit($node.postCond) )
+#else
+    #set( $postcondition = "" )
+#end
+##
+#set( $methodAttributes = $template.formatAttributes($node) )
+#set( $methodModifiers = $template.formatMethodModifiers($node) )
+#set( $methodBody = $template.visit($node.body) )
+##
+$methodAttributes
+$methodModifiers $methodReturnType $methodName($methodParameters)
+{
+    $methodBody
+}
+
+$precondition
+
+$postcondition

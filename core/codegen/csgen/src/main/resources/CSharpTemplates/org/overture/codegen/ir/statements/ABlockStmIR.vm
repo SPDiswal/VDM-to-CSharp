@@ -1,0 +1,5 @@
+#set( $statements = $template.visitAll($node.statements) )
+##
+#foreach( $statement in $statements )
+    $statement
+#end
