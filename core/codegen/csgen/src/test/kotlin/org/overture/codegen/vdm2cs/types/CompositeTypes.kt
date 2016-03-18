@@ -11,18 +11,14 @@ final class CompositeTypes : Spek()
     // TODO Handle equality abstraction fields.
     // TODO Handle comparison of floating point numbers (of type double) (in another specification than this).
 
-    // TODO Test records with no fields.
-    // TODO Test records with a single field.
-
     init
     {
-        given("a composite type AlphaRecord with fields of nat1 and bool; " +
+        given("a composite type AlphaRecord with no fields " +
               "and an implicit function with a return type of AlphaRecord")
         {
             val vdm = """
                 types
-                    AlphaRecord :: first: nat1
-                                   second: bool;
+                    AlphaRecord :: ;
 
                 functions
                     AlphaFunc () r: AlphaRecord
@@ -33,66 +29,39 @@ final class CompositeTypes : Spek()
             {
                 val cs = vdm.transcompile()
 
-                it("has a nested sealed class called 'AlphaRecord' that implements IEquatable<AlphaRecord>")
+                it("declares the nested class 'AlphaRecord' " +
+                   "that implements ICopyable<AlphaRecord> and IEquatable<AlphaRecord>")
                 {
                     cs.shouldContain(
-                        a("public sealed class AlphaRecord : IEquatable<AlphaRecord>") { anything() })
-                }
-
-                it("has a property of type int called 'first'")
-                {
-                    cs.shouldContain(
-                        a("class AlphaRecord : IEquatable<AlphaRecord>")
-                        {
-                            a("public int first { get; set; }") +
-                            anything()
-                        })
-                }
-
-                it("has a property of type bool called 'second'")
-                {
-                    cs.shouldContain(
-                        a("class AlphaRecord : IEquatable<AlphaRecord>")
-                        {
-                            anything() +
-                            a("public bool second { get; set; }") +
-                            anything()
-                        })
+                        aClassDeclaration("AlphaRecord",
+                                          listOf("ICopyable<>", "IEquatable<>")))
                 }
 
                 it("implements the Equals method of IEquatable<AlphaRecord>")
                 {
                     cs.shouldContain(
-                        a("class AlphaRecord : IEquatable<AlphaRecord>")
+                        inMidstOfClass("AlphaRecord")
                         {
-                            anything() +
-                            a("public bool Equals(AlphaRecord other)")
+                            aMethodDeclaration("bool", "Equals", listOf(Pair("AlphaRecord", "other")))
                             {
-                                a("""
-                                if (ReferenceEquals(null, other)) return false;
-                                if (ReferenceEquals(this, other)) return true;
-                                return first == other.first && second == other.second;
-                                """)
-                            } +
-                            anything()
+                                a("return !ReferenceEquals(null, other);")
+                            }
                         })
                 }
 
                 it("overrides the Equals method of object")
                 {
                     cs.shouldContain(
-                        a("class AlphaRecord : IEquatable<AlphaRecord>")
+                        inMidstOfClass("AlphaRecord")
                         {
-                            anything() +
-                            a("public override bool Equals(object other)")
+                            anOverridingMethodDeclaration("bool", "Equals", listOf(Pair("object", "other")))
                             {
                                 a("""
                                 if (ReferenceEquals(null, other)) return false;
                                 if (ReferenceEquals(this, other)) return true;
                                 return other is AlphaRecord && Equals((AlphaRecord) other);
                                 """)
-                            } +
-                            anything()
+                            }
                         })
                 }
 
@@ -102,102 +71,69 @@ final class CompositeTypes : Spek()
 
                 // TODO Overrides the ToString method of object.
 
-                it("has a return type of DEFAULT.AlphaRecord")
+                // TODO Implements the Copy method of ICopyable.
+
+                it("has a return type of AlphaRecord")
                 {
-                    cs.shouldContain(a("DEFAULT.AlphaRecord AlphaFunc()"))
+                    cs.shouldContain(aPureStaticMethodDeclaration("AlphaRecord", "AlphaFunc"))
                 }
             }
         }
 
-        given("a composite type BravoRecord with fields of token, int and seq of char; " +
-              "and an implicit function with a return type of BravoRecord")
+        given("a composite type BravoRecord with a single field of bool")
         {
             val vdm = """
                 types
-                    BravoRecord :: id: token
-                                   number: int
-                                   text: seq of char;
-
-                functions
-                    BravoFunc () r: BravoRecord
-                    post true;
+                    BravoRecord :: b: bool;
                 """
 
             on("transcompilation")
             {
                 val cs = vdm.transcompile()
 
-                it("has a nested sealed class called 'BravoRecord' that implements IEquatable<BravoRecord>")
+                it("declares the nested class 'BravoRecord' " +
+                   "that implements ICopyable<BravoRecord> and IEquatable<BravoRecord>")
                 {
                     cs.shouldContain(
-                        a("public sealed class BravoRecord : IEquatable<BravoRecord>") { anything() })
+                        aClassDeclaration("BravoRecord",
+                                          listOf("ICopyable<>", "IEquatable<>")))
                 }
 
-                it("has a property of type object called 'id'")
+                it("declares the property 'b' of type bool")
                 {
                     cs.shouldContain(
-                        a("class BravoRecord : IEquatable<BravoRecord>")
-                        {
-                            a("public object id { get; set; }") +
-                            anything()
-                        })
-                }
-
-                it("has a property of type int called 'number'")
-                {
-                    cs.shouldContain(
-                        a("class BravoRecord : IEquatable<BravoRecord>")
-                        {
-                            anything() +
-                            a("public int number { get; set; }") +
-                            anything()
-                        })
-                }
-
-                it("has a property of type string called 'text'")
-                {
-                    cs.shouldContain(
-                        a("class BravoRecord : IEquatable<BravoRecord>")
-                        {
-                            anything() +
-                            a("public string text { get; set; }") +
-                            anything()
-                        })
+                        inTopOfClass("BravoRecord") { aPropertyDeclaration("bool", "b") })
                 }
 
                 it("implements the Equals method of IEquatable<BravoRecord>")
                 {
                     cs.shouldContain(
-                        a("class BravoRecord : IEquatable<BravoRecord>")
+                        inMidstOfClass("BravoRecord")
                         {
-                            anything() +
-                            a("public bool Equals(BravoRecord other)")
+                            aMethodDeclaration("bool", "Equals", listOf(Pair("BravoRecord", "other")))
                             {
                                 a("""
                                 if (ReferenceEquals(null, other)) return false;
                                 if (ReferenceEquals(this, other)) return true;
-                                return id == other.id && number == other.number && text == other.text;
+                                return b == other.b;
                                 """)
-                            } +
-                            anything()
+                            }
                         })
                 }
 
                 it("overrides the Equals method of object")
                 {
                     cs.shouldContain(
-                        a("class BravoRecord : IEquatable<BravoRecord>")
+                        inMidstOfClass("BravoRecord")
                         {
-                            anything() +
-                            a("public override bool Equals(object other)")
+                            anOverridingMethodDeclaration("bool", "Equals", listOf(Pair("object", "other")))
                             {
                                 a("""
                                 if (ReferenceEquals(null, other)) return false;
                                 if (ReferenceEquals(this, other)) return true;
                                 return other is BravoRecord && Equals((BravoRecord) other);
                                 """)
-                            } +
-                            anything()
+                            }
                         })
                 }
 
@@ -207,10 +143,110 @@ final class CompositeTypes : Spek()
 
                 // TODO Overrides the ToString method of object.
 
-                it("has a return type of DEFAULT.BravoRecord")
+                // TODO Implements the Copy method of ICopyable.
+            }
+        }
+
+        given("a composite type CharlieRecord with fields of nat1 and bool")
+        {
+            val vdm = """
+                types
+                    CharlieRecord :: first: nat1
+                                     second: bool;
+                """
+
+            on("transcompilation")
+            {
+                val cs = vdm.transcompile()
+
+                it("declares the property 'first' of type int")
                 {
-                    cs.shouldContain(a("DEFAULT.BravoRecord BravoFunc()"))
+                    cs.shouldContain(
+                        inTopOfClass("CharlieRecord") { aPropertyDeclaration("int", "first") })
                 }
+
+                it("declares the property 'second' of type bool")
+                {
+                    cs.shouldContain(
+                        inMidstOfClass("CharlieRecord") { aPropertyDeclaration("bool", "second") })
+                }
+
+                it("implements the Equals method of IEquatable<CharlieRecord>")
+                {
+                    cs.shouldContain(
+                        inMidstOfClass("CharlieRecord")
+                        {
+                            aMethodDeclaration("bool", "Equals", listOf(Pair("CharlieRecord", "other")))
+                            {
+                                a("""
+                                if (ReferenceEquals(null, other)) return false;
+                                if (ReferenceEquals(this, other)) return true;
+                                return first == other.first && second == other.second;
+                                """)
+                            }
+                        })
+                }
+
+                // TODO Overrides the GetHashCode method of object.
+
+                // TODO Overrides the ToString method of object.
+
+                // TODO Implements the Copy method of ICopyable.
+            }
+        }
+
+        given("a composite type DeltaRecord with fields of token, int and seq of char")
+        {
+            val vdm = """
+                        types
+                            DeltaRecord :: id: token
+                                           number: int
+                                           text: seq of char;
+                        """
+
+            on("transcompilation")
+            {
+                val cs = vdm.transcompile()
+
+                it("declares the property 'id' of type Token")
+                {
+                    cs.shouldContain(
+                        inTopOfClass("DeltaRecord") { aPropertyDeclaration("Token", "id") })
+                }
+
+                it("declares the property 'number' of type int")
+                {
+                    cs.shouldContain(
+                        inMidstOfClass("DeltaRecord") { aPropertyDeclaration("int", "number") })
+                }
+
+                it("declares the property 'text' of type string")
+                {
+                    cs.shouldContain(
+                        inMidstOfClass("DeltaRecord") { aPropertyDeclaration("string", "text") })
+                }
+
+                it("implements the Equals method of IEquatable<DeltaRecord>")
+                {
+                    cs.shouldContain(
+                        inMidstOfClass("DeltaRecord")
+                        {
+                            aMethodDeclaration("bool", "Equals", listOf(Pair("DeltaRecord", "other")))
+                            {
+                                a("""
+                                if (ReferenceEquals(null, other)) return false;
+                                if (ReferenceEquals(this, other)) return true;
+                                return id == other.id && number == other.number && text == other.text;
+                                """)
+                            }
+                        })
+                }
+
+                // TODO Overrides the GetHashCode method of object.
+
+                // TODO Overrides the ToString method of object.
+
+                // TODO Implements the Copy method of ICopyable.
             }
         }
     }

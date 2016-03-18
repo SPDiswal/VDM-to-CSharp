@@ -2,7 +2,7 @@ package org.overture.codegen.vdm2cs.templates
 
 import org.overture.codegen.ir.PIR
 import org.overture.codegen.ir.analysis.AnalysisException
-import org.overture.codegen.ir.declarations.AMethodDeclIR
+import org.overture.codegen.ir.declarations.*
 import org.overture.codegen.merging.MergeVisitor
 import java.io.StringWriter
 
@@ -11,6 +11,8 @@ import java.io.StringWriter
  */
 final class CsTemplateFormatter
 {
+    // TODO Determine when to parenthesise expressions to preserve semantics due to precedence rules.
+
     var mergeVisitor: MergeVisitor? = null
 
     /**
@@ -27,7 +29,7 @@ final class CsTemplateFormatter
     {
         val writer = StringWriter()
         node.apply<StringWriter>(mergeVisitor, writer)
-        return writer.toString()
+        return writer.toString().trim()
     }
 
     /**
@@ -43,7 +45,7 @@ final class CsTemplateFormatter
     fun visitAll(nodes: List<PIR>) = nodes.map {
         val writer = StringWriter()
         it.apply<StringWriter>(mergeVisitor, writer)
-        writer.toString()
+        writer.toString().trim()
     }
 
     /**
@@ -58,17 +60,25 @@ final class CsTemplateFormatter
      * @throws AnalysisException if an error occurs when processing an IR node.
      */
     @Throws(AnalysisException::class)
-    fun joinAll(nodes: List<PIR>, separator: String = "") = nodes.map {
-        val writer = StringWriter()
-        it.apply<StringWriter>(mergeVisitor, writer)
-        writer.toString()
-    }.joinToString(separator)
+    fun joinAll(nodes: List<PIR>, separator: String = "") = visitAll(nodes).joinToString(separator)
 
     fun formatAttributes(node: PIR): String
         = node.metaData
         .filter { it.value.startsWith("Attribute:") }
         .map { "[${it.value.removePrefix("Attribute:")}]" }
         .joinToString("\n")
+
+    fun formatClassModifiers(classDeclaration: ADefaultClassDeclIR): String
+    {
+        val modifiers = mutableListOf("public")
+        if (classDeclaration.static) modifiers.add("static")
+
+        modifiers.addAll(classDeclaration.metaData
+                             .filter { it.value.startsWith("Modifier:") }
+                             .map { it.value.removePrefix("Modifier:") })
+
+        return modifiers.joinToString(" ")
+    }
 
     fun formatMethodModifiers(methodDeclaration: AMethodDeclIR): String
     {

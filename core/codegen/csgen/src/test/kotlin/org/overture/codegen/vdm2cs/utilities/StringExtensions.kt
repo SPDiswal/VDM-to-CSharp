@@ -3,6 +3,8 @@ package org.overture.codegen.vdm2cs.utilities
 import com.natpryce.hamkrest.assertion.assertThat
 import org.overture.ast.analysis.AnalysisException
 import org.overture.codegen.vdm2cs.CsTranscompiler
+import org.overture.codegen.vdm2cs.utilities.*
+import kotlin.text.RegexOption.DOT_MATCHES_ALL
 
 /**
  * Parses and type-checks the given string as a single VDM-SL document (either a flat specification or a single module)
@@ -25,14 +27,8 @@ fun String.transcompile(): String
     return csOutput
 }
 
-fun String.toTrimmedRegex()
-    = (".*" + this.replace("\n", "\\s*") + ".*").toRegex(RegexOption.DOT_MATCHES_ALL)
-
-fun String.mapLines(transform: (String) -> String)
-    = this.lines().map(transform).joinToString("\n")
-
-fun String.removeIndent()
-    = this.mapLines { it.trimIndent() }
-
 fun String.shouldContain(expectedOutput: String)
-    = assertThat(this, com.natpryce.hamkrest.matches(expectedOutput.toTrimmedRegex()))
+{
+    val trimmedOutput = anything() + expectedOutput.replace("\n\n", "\n").replace("\n", """\n(?:    )*""") + anything()
+    assertThat(this, com.natpryce.hamkrest.matches(trimmedOutput.toRegex(DOT_MATCHES_ALL)))
+}

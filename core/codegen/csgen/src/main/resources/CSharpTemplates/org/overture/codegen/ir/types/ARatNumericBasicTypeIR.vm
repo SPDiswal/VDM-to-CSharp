@@ -1,7 +1,12 @@
-#if( $node.optional )
-    #set( $nullableSyntax = "?" )
+#if( $node.namedInvType )
+    #set( $type = $template.visit($node.namedInvType.name) )
 #else
-    #set( $nullableSyntax = "" )
+    #if( $node.optional )
+        #set( $nullableSyntax = "?" )
+    #else
+        #set( $nullableSyntax = "" )
+    #end
+    #set( $type = "double$nullableSyntax" )
 #end
 ##
-double$nullableSyntax
+$type

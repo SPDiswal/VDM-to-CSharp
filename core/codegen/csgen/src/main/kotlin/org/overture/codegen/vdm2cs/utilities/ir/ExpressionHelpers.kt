@@ -136,7 +136,16 @@ fun typeCast(expression: SExpIR, type: STypeIR): SExpIR
     return typeCastExpression
 }
 
-fun binaryAnd(left: SExpIR, right: SExpIR): SExpIR
+fun not(expression: SExpIR): SExpIR
+{
+    val notExpression = ANotUnaryExpIR()
+    notExpression.type = boolType()
+    notExpression.exp = expression.clone()
+
+    return notExpression
+}
+
+fun and(left: SExpIR, right: SExpIR): SExpIR
 {
     val andExpression = AAndBoolBinaryExpIR()
     andExpression.type = boolType()
@@ -146,7 +155,7 @@ fun binaryAnd(left: SExpIR, right: SExpIR): SExpIR
     return andExpression
 }
 
-fun binaryEquals(left: SExpIR, right: SExpIR): SExpIR
+fun equalTo(left: SExpIR, right: SExpIR): SExpIR
 {
     // TODO Handle specific cases of Equals.
     // e.g. Double.Compare for floating point numbers and SequenceEquals/SetEquals for sequences/sets

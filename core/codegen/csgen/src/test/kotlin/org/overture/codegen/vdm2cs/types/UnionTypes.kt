@@ -8,6 +8,10 @@ final class UnionTypes : Spek()
     // TODO Use the most specific common type in a union type instead of object.
     // E.g. nat | int becomes int, int | real becomes double (although such union types are redundant).
 
+    // TODO Represent union types by dedicated classes that are generated on demand (like records).
+    //      Let them have a single object property holding the current value.
+    //      Use some kind of naming scheme for anonymous union types.
+
     init
     {
         given("an implicit function with a return type of bool | nat")
@@ -22,7 +26,10 @@ final class UnionTypes : Spek()
             {
                 val cs = vdm.transcompile()
 
-                it("has a return type of object") { cs.shouldContain(a("object Alpha()")) }
+                it("has a return type of object")
+                {
+                    cs.shouldContain(aPureStaticMethodDeclaration("object", "Alpha"))
+                }
             }
         }
 
@@ -38,7 +45,10 @@ final class UnionTypes : Spek()
             {
                 val cs = vdm.transcompile()
 
-                it("has a return type of object") { cs.shouldContain(a("object Bravo()")) }
+                it("has a return type of object")
+                {
+                    cs.shouldContain(aPureStaticMethodDeclaration("object", "Bravo"))
+                }
             }
         }
 
@@ -54,7 +64,10 @@ final class UnionTypes : Spek()
             {
                 val cs = vdm.transcompile()
 
-                it("has a return type of IList<object>") { cs.shouldContain(a("IList<object> Charlie()")) }
+                it("has a return type of IList<object>")
+                {
+                    cs.shouldContain(aPureStaticMethodDeclaration("IList<object>", "Charlie"))
+                }
             }
         }
     }

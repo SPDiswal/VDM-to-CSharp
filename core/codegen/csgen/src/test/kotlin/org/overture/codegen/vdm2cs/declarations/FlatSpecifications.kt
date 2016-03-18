@@ -19,25 +19,24 @@ final class FlatSpecifications : Spek()
             {
                 val cs = vdm.transcompile()
 
-                it("has using statements")
+                it("has a using directive for 'System'")
                 {
-                    cs.shouldContain(
-                        a("""
-                        using System;
-                        using System.Diagnostics.Contracts;
-                        """))
+                    cs.shouldContain(aUsingDirective("System"))
                 }
 
-                it("has a namespace called 'VdmToCSharp'")
+                it("has a using directive for 'System.Diagnostics.Contracts'")
                 {
-                    cs.shouldContain(
-                        a("namespace VdmToCSharp") { anything() })
+                    cs.shouldContain(aUsingDirective("System.Diagnostics.Contracts"))
                 }
 
-                it("has a static class called 'DEFAULT'")
+                it("declares the namespace 'VdmToCs'")
                 {
-                    cs.shouldContain(
-                        a("public static class DEFAULT") { anything() })
+                    cs.shouldContain(aNamespaceDeclaration("VdmToCs"))
+                }
+
+                it("declares the static class 'DEFAULT'")
+                {
+                    cs.shouldContain(inNamespace("VdmToCs") { aStaticClassDeclaration("DEFAULT") })
                 }
             }
         }

@@ -1,7 +1,6 @@
 package org.overture.codegen.vdm2cs.transformations
 
-import org.overture.ast.util.ClonableString
-import org.overture.codegen.assistant.*
+import org.overture.codegen.assistant.DeclAssistantIR
 import org.overture.codegen.ir.analysis.DepthFirstAnalysisAdaptor
 import org.overture.codegen.ir.declarations.*
 import org.overture.codegen.ir.statements.ABlockStmIR
@@ -30,6 +29,16 @@ final class FunctionsToPureMethods(val transform: TransAssistantIR) : DepthFirst
         methodDeclaration.preCond?.apply(this)
         methodDeclaration.postCond?.apply(this)
 
-        transform.replaceNodeWith(functionDeclaration, methodDeclaration)
+        val enclosingClassDeclaration = functionDeclaration.getAncestor(ADefaultClassDeclIR::class.java)
+
+        if (enclosingClassDeclaration != null)
+        {
+            enclosingClassDeclaration.functions.remove(functionDeclaration)
+            enclosingClassDeclaration.methods.add(methodDeclaration)
+        }
+        else
+        {
+            transform.replaceNodeWith(functionDeclaration, methodDeclaration)
+        }
     }
 }

@@ -101,7 +101,7 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <mainClass>org.overture.codegen.vdm2cs.Vdm2CSharpKt</mainClass>
+                    <mainClass>org.overture.codegen.vdm2cs.Vdm2CsKt</mainClass>
                 </configuration>
             </plugin>
         </plugins>

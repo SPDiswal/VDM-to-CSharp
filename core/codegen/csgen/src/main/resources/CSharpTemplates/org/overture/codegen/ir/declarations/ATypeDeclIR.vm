@@ -1,3 +1,0 @@
-#set( $typeDeclaration = $template.visit($node.decl) )
-##
-$typeDeclaration

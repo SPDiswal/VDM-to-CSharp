@@ -9,7 +9,7 @@ final class CsSourceCodeFormatter
     {
         val result = FormattingResult()
 
-        for (line in input.lines().map { it.trim() })
+        for ((index, line) in input.lines().map { it.trim() }.withIndex())
         {
             when (line)
             {
@@ -21,8 +21,7 @@ final class CsSourceCodeFormatter
 
                 "}"  ->
                 {
-                    while (result.lines.last().isBlank())
-                        result.removeLast()
+                    removeLatestBlankLines(result)
 
                     result.dedent()
                     result.add(line)
@@ -31,13 +30,33 @@ final class CsSourceCodeFormatter
 
                 else ->
                 {
-                    if (!line.isBlank() || (result.lines.last().trim() != "{" && !result.lines.last().isBlank()))
+                    val isNamespaceDeclaration = line.matches("""namespace \w*$""".toRegex())
+                    val isContractDirective = line.matches("""Contract\.(?:Requires|Ensures)\(.*\);""".toRegex())
+                    val isSignificant = !line.isBlank()
+                                        || result.lines.last().trim() != "{" && !result.lines.last().isBlank()
+
+                    if (isNamespaceDeclaration && index > 0)
+                        result.addBlank()
+
+                    if (isContractDirective)
+                        removeLatestBlankLines(result)
+
+                    if (isSignificant)
                         result.add(line)
+
+                    if (isContractDirective)
+                        result.addBlank()
                 }
             }
         }
 
         return result.joinedLines
+    }
+
+    private fun removeLatestBlankLines(result: FormattingResult)
+    {
+        while (result.lines.last().isBlank())
+            result.removeLast()
     }
 
     private class FormattingResult

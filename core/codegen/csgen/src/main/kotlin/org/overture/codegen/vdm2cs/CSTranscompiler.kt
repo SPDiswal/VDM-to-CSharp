@@ -2,7 +2,7 @@ package org.overture.codegen.vdm2cs
 
 import org.overture.ast.analysis.AnalysisException
 import org.overture.codegen.ir.*
-import org.overture.codegen.ir.declarations.AModuleDeclIR
+import org.overture.codegen.ir.declarations.*
 import org.overture.codegen.merging.*
 import org.overture.codegen.utils.GeneratedData
 import org.overture.codegen.vdm2cs.templates.*
@@ -27,11 +27,13 @@ final class CsTranscompiler : CodeGenBase()
         templateFormatter.mergeVisitor = this.mergeVisitor
     }
 
-    private val transformations = listOf(FunctionsToPureMethods(transAssistant),
-                                         PostconditionsToContractEnsures(),
-                                         PreconditionsToContractRequires(),
-                                         SeqOfCharToString(transAssistant),
-                                         RecordsToEquatableClasses())
+    private val transformations = listOf(
+        FunctionsToPureMethods(transAssistant),
+        TypeDeclarationsToDataClasses(),
+        PostconditionsToContractEnsures(),
+        PreconditionsToContractRequires(),
+        SeqOfCharToString(transAssistant)
+    )
 
     /**
      * Transcompiles a collection of IR nodes representing VDM-SL modules to a collection of static C# classes.
@@ -45,12 +47,14 @@ final class CsTranscompiler : CodeGenBase()
     @Throws(AnalysisException::class)
     override fun genVdmToTargetLang(ir: List<IRStatus<PIR>>): GeneratedData
     {
-        val modules = IRStatus.extract(ir, AModuleDeclIR::class.java)
+        val modules = IRStatus.extract(IRStatus.extract(ir, AModuleDeclIR::class.java))
+        modules.forEach { m -> generator.applyTotalTransformation(m, ModulesToStaticClassesInTopLevel(transAssistant)) }
 
-        modules.forEach { m -> transformations.forEach { t -> generator.applyPartialTransformation(m, t) } }
+        val classes = IRStatus.extract(modules, ADefaultClassDeclIR::class.java)
+        classes.forEach { c -> transformations.forEach { t -> generator.applyPartialTransformation(c, t) } }
 
         val generatedData = GeneratedData()
-        val generatedModules = modules.map { genIrModule(mergeVisitor, it) }
+        val generatedModules = classes.map { genIrModule(mergeVisitor, it) }
 
         generatedData.classes = generatedModules
         return generatedData

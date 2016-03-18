@@ -3,7 +3,35 @@ package org.overture.codegen.vdm2cs.utilities.ir
 import org.overture.codegen.ir.*
 import org.overture.codegen.ir.declarations.*
 import org.overture.codegen.ir.expressions.SVarExpIR
+import org.overture.codegen.ir.name.ATokenNameIR
 import org.overture.codegen.ir.patterns.AIdentifierPatternIR
+
+fun field(name: String, type: STypeIR): AFieldDeclIR
+{
+    val field = AFieldDeclIR()
+    field.name = name
+    field.type = type
+
+    return field;
+}
+
+fun sealedClassDeclaration(name: String,
+                           implementedInterfaces: List<String> = emptyList()): ADefaultClassDeclIR
+{
+    val formattedImplementedInterfaces = implementedInterfaces.map {
+        val tokenName = ATokenNameIR()
+        tokenName.name = it.replace("<>", "<$name>")
+        tokenName
+    }
+
+    val classDeclaration = ADefaultClassDeclIR()
+    classDeclaration.name = name
+    classDeclaration.static = false
+    classDeclaration.addModifier("sealed")
+    classDeclaration.superNames.addAll(formattedImplementedInterfaces)
+
+    return classDeclaration
+}
 
 fun SVarExpIR.asParameter() = parameter(this.name, this.type)
 

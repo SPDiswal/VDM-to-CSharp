@@ -19,17 +19,15 @@ final class ExplicitFunctions : Spek()
             {
                 val cs = vdm.transcompile()
 
-                it("has a static method called 'Alpha' with " +
+                it("declares the static method 'Alpha' with " +
                    "a [Pure] attribute, no parameters and a return type of int")
                 {
-                    cs.shouldContain(
-                        a("[Pure]",
-                          "public static int Alpha()") { anything() })
+                    cs.shouldContain(aPureStaticMethodDeclaration("int", "Alpha"))
                 }
 
                 it("returns 1 in 'Alpha'")
                 {
-                    cs.shouldContain(a("int Alpha()") { a("return 1;") })
+                    cs.shouldContain(inMethod("int", "Alpha") { a("return 1;") })
                 }
             }
         }

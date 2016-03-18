@@ -10,6 +10,14 @@ fun objectType() = AObjectTypeIR()
 
 fun voidType() = AVoidTypeIR()
 
+fun classType(name: String): AClassTypeIR
+{
+    val classType = AClassTypeIR()
+    classType.name = name
+
+    return classType
+}
+
 fun methodType(argumentTypes: List<STypeIR>, returnType: STypeIR): AMethodTypeIR
 {
     val methodType = AMethodTypeIR()

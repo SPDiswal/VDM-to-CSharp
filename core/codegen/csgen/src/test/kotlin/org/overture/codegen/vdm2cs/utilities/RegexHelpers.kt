@@ -1,57 +1,34 @@
 package org.overture.codegen.vdm2cs.utilities
 
 /**
- * Constructs a regex pattern that matches anything.
+ * Constructs a regex pattern that matches anything, including newline characters.
  *
  * @return the regex pattern string '.*'.
  */
 fun anything() = ".*"
 
 /**
- * Constructs a regex pattern that matches whitespace.
- *
- * @return the regex pattern string '\s*'.
- */
-fun whitespace() = "\\s*"
-
-/**
  * Constructs a regex pattern that matches the given string, potentially spanning multiple lines.
  *
- * @param body the string to match.
+ * @param contents the string to match.
  *
- * @return the escaped regex pattern string '\Qbody\E'.
+ * @return the escaped regex pattern string '\Qcontents\E'.
  */
-fun a(body: String) = body.mapLines { Regex.escape(it.removeIndent()) }
+fun a(contents: String) = contents.trimIndent().lines().map { Regex.escape(it.trim()) }.joinToString("\n")
 
 /**
- * Constructs a regex pattern that matches the given header string
- * followed by the given body string in curly braces.
+ * Constructs a regex pattern that matches the given header regex pattern string
+ * followed by the given contents regex pattern string in curly braces.
  *
- * @param header the header string to match.
- * @param body the body string to match.
+ * @param header the header regex pattern string to match.
+ * @param contents the contents regex pattern string to match.
  *
- * @return the escaped regex pattern string '\Qheader\E\{body\}'.
+ * @return the regex pattern string 'header\n\{contents\n\}\n'.
  */
-fun a(header: String, body: () -> String)
-    = """
-        ${a(header)}
-        \{
-        ${body()}
-        \}
-        """.removeIndent()
+fun a(header: String, contents: () -> String) = header + "\n\\{\n" + contents() + "\n\\}\n"
 
-/**
- * Constructs a regex pattern that matches the given header string
- * preceded by the given attribute string and followed by the given body string in curly braces.
- *
- * @param attribute the attribute string to match.
- * @param header the header string to match.
- * @param body the body string to match.
- *
- * @return the escaped regex pattern string '\Qattribute\E\s*\Qheader\E\{body\}'.
- */
-fun a(attribute: String, header: String, body: () -> String)
-    = """
-        ${a(attribute)}
-        ${a(header, body)}
-        """.removeIndent()
+fun inTop(contents: () -> String) = contents() + anything()
+
+fun inMidst(contents: () -> String) = anything() + contents() + anything()
+
+fun inBottom(contents: () -> String) = anything() + contents()

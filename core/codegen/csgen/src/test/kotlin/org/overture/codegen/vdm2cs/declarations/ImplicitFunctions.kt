@@ -5,6 +5,15 @@ import org.overture.codegen.vdm2cs.utilities.*
 
 final class ImplicitFunctions : Spek()
 {
+    // TODO Use code contracts to enforce typing rules of VDM onto parameter values (preconditions),
+    //      return values (postconditions) and fields/properties (invariants).
+    //
+    //      Guard nat by >= 0 and nat1 by > 0.
+    //      Guard all non-optional types by != null.
+    //      Guard seq1 by Any().
+    //      Guard seq1 of char (string) by !IsEmpty().
+    //      Guard inmap by IsInjective() (custom extension method).
+
     init
     {
         given("an implicit function 'Alpha' with no parameters and a return type of nat; " +
@@ -20,46 +29,44 @@ final class ImplicitFunctions : Spek()
             {
                 val cs = vdm.transcompile()
 
-                it("has a static method called 'Alpha' with " +
+                it("declares the static method 'Alpha' with " +
                    "a [Pure] attribute, no parameters and a return type of int")
                 {
-                    cs.shouldContain(
-                        a("[Pure]",
-                          "public static int Alpha()") { anything() })
+                    cs.shouldContain(aPureStaticMethodDeclaration("int", "Alpha"))
                 }
 
                 it("invokes 'post_Alpha' by Contract.Ensures in 'Alpha'")
                 {
                     cs.shouldContain(
-                        a("int Alpha()")
+                        inTopOfMethod("int", "Alpha")
                         {
-                            a("Contract.Ensures(post_Alpha(Contract.Result<int>()));") +
-                            anything()
+                            a("Contract.Ensures(post_Alpha(Contract.Result<int>()));")
                         })
                 }
 
                 it("throws a NotImplementedException in 'Alpha'")
                 {
                     cs.shouldContain(
-                        a("int Alpha()")
+                        inBottomOfMethod("int", "Alpha")
                         {
-                            anything() +
                             a("throw new NotImplementedException();")
                         })
                 }
 
-                it("has a static method called 'post_Alpha' with " +
+                it("declares the static method 'post_Alpha' with " +
                    "a [Pure] attribute, a parameter of int and a return type of bool")
                 {
                     cs.shouldContain(
-                        a("[Pure]",
-                          "public static bool post_Alpha(int n)") { anything() })
+                        aPureStaticMethodDeclaration("bool", "post_Alpha", listOf(Pair("int", "n"))))
                 }
 
                 it("returns true in 'post_Alpha'")
                 {
                     cs.shouldContain(
-                        a("bool post_Alpha(int n)") { a("return true;") })
+                        inMethod("bool", "post_Alpha", listOf(Pair("int", "n")))
+                        {
+                            a("return true;")
+                        })
                 }
             }
         }
@@ -79,71 +86,72 @@ final class ImplicitFunctions : Spek()
             {
                 val cs = vdm.transcompile()
 
-                it("has a static method called 'Bravo' with " +
+                it("declares the static method 'Bravo' with " +
                    "a [Pure] attribute, a parameter of int and a return type of double")
                 {
                     cs.shouldContain(
-                        a("[Pure]",
-                          "public static double Bravo(int a)") { anything() })
+                        aPureStaticMethodDeclaration("double", "Bravo", listOf(Pair("int", "a"))))
                 }
 
                 it("invokes 'pre_Bravo' by Contract.Requires in 'Bravo'")
                 {
                     cs.shouldContain(
-                        a("double Bravo(int a)")
+                        inTopOfMethod("double", "Bravo", listOf(Pair("int", "a")))
                         {
-                            a("Contract.Requires(pre_Bravo(a));") +
-                            anything()
+                            a("Contract.Requires(pre_Bravo(a));")
                         })
                 }
 
                 it("invokes 'post_Bravo' by Contract.Ensures in 'Bravo'")
                 {
                     cs.shouldContain(
-                        a("double Bravo(int a)")
+                        inMidstOfMethod("double", "Bravo", listOf(Pair("int", "a")))
                         {
-                            anything() +
-                            a("Contract.Ensures(post_Bravo(a, Contract.Result<double>()));") +
-                            anything()
+                            a("Contract.Ensures(post_Bravo(a, Contract.Result<double>()));")
                         })
                 }
 
                 it("throws a NotImplementedException in 'Bravo'")
                 {
                     cs.shouldContain(
-                        a("double Bravo(int a)")
+                        inBottomOfMethod("double", "Bravo", listOf(Pair("int", "a")))
                         {
-                            anything() +
                             a("throw new NotImplementedException();")
                         })
                 }
 
-                it("has a static method called 'pre_Bravo' with " +
+                it("declares the static method 'pre_Bravo' with " +
                    "a [Pure] attribute, a parameter of int and a return type of bool")
                 {
                     cs.shouldContain(
-                        a("[Pure]",
-                          "public static bool pre_Bravo(int a)") { anything() })
+                        aPureStaticMethodDeclaration("bool", "pre_Bravo", listOf(Pair("int", "a"))))
                 }
 
                 it("returns true in 'pre_Bravo'")
                 {
                     cs.shouldContain(
-                        a("bool pre_Bravo(int a)") { a("return true;") })
+                        inMethod("bool", "pre_Bravo", listOf(Pair("int", "a")))
+                        {
+                            a("return true;")
+                        })
                 }
 
-                it("has a static method called 'post_Bravo' with " +
+                it("declares the static method 'post_Bravo' with " +
                    "a [Pure] attribute, parameters of int and double and a return type of bool")
                 {
                     cs.shouldContain(
-                        a("[Pure]",
-                          "public static bool post_Bravo(int a, double r)") { anything() })
+                        aPureStaticMethodDeclaration("bool", "post_Bravo", listOf(Pair("int", "a"),
+                                                                                  Pair("double", "r"))))
                 }
 
                 it("returns false in 'post_Bravo'")
                 {
                     cs.shouldContain(
-                        a("bool post_Bravo(int a, double r)") { a("return false;") })
+                        inMethod("bool", "post_Bravo", listOf(Pair("int", "a"),
+                                                              Pair("double", "r")))
+                        {
+                            a("return false;")
+                        })
                 }
             }
         }
@@ -168,113 +176,130 @@ final class ImplicitFunctions : Spek()
             {
                 val cs = vdm.transcompile()
 
-                it("has a static method called 'Charlie' with " +
-                   "a [Pure] attribute, parameters of int, double and char and a return type of object")
+                it("declares the static method 'Charlie' with " +
+                   "a [Pure] attribute, parameters of int, double and char and a return type of Token")
                 {
                     cs.shouldContain(
-                        a("[Pure]",
-                          "public static object Charlie(int x, double y, char z)") { anything() })
+                        aPureStaticMethodDeclaration("Token", "Charlie", listOf(Pair("int", "x"),
+                                                                                Pair("double", "y"),
+                                                                                Pair("char", "z"))))
                 }
 
                 it("invokes 'pre_Charlie' by Contract.Requires in 'Charlie'")
                 {
                     cs.shouldContain(
-                        a("object Charlie(int x, double y, char z)")
+                        inTopOfMethod("Token", "Charlie", listOf(Pair("int", "x"),
+                                                                 Pair("double", "y"),
+                                                                 Pair("char", "z")))
                         {
-                            a("Contract.Requires(pre_Charlie(x, y, z));") +
-                            anything()
+                            a("Contract.Requires(pre_Charlie(x, y, z));")
                         })
                 }
 
                 it("invokes 'post_Charlie' by Contract.Ensures in 'Charlie'")
                 {
                     cs.shouldContain(
-                        a("object Charlie(int x, double y, char z)")
+                        inMidstOfMethod("Token", "Charlie", listOf(Pair("int", "x"),
+                                                                   Pair("double", "y"),
+                                                                   Pair("char", "z")))
                         {
-                            anything() +
-                            a("Contract.Ensures(post_Charlie(x, y, z, Contract.Result<object>()));") +
-                            anything()
+                            a("Contract.Ensures(post_Charlie(x, y, z, Contract.Result<Token>()));")
                         })
                 }
 
                 it("throws a NotImplementedException in 'Charlie'")
                 {
                     cs.shouldContain(
-                        a("object Charlie(int x, double y, char z)")
+                        inBottomOfMethod("Token", "Charlie", listOf(Pair("int", "x"),
+                                                                    Pair("double", "y"),
+                                                                    Pair("char", "z")))
                         {
-                            anything() +
                             a("throw new NotImplementedException();")
                         })
                 }
 
-                it("has a static method called 'pre_Charlie' with " +
+                it("declares the static method 'pre_Charlie' with " +
                    "a [Pure] attribute, parameters of int, double and char and a return type of bool")
                 {
                     cs.shouldContain(
-                        a("[Pure]",
-                          "public static bool pre_Charlie(int x, double y, char z)") { anything() })
+                        aPureStaticMethodDeclaration("bool", "pre_Charlie", listOf(Pair("int", "x"),
+                                                                                   Pair("double", "y"),
+                                                                                   Pair("char", "z"))))
                 }
 
                 it("returns false in 'pre_Charlie'")
                 {
                     cs.shouldContain(
-                        a("bool pre_Charlie(int x, double y, char z)") { a("return false;") })
+                        inMethod("bool", "pre_Charlie", listOf(Pair("int", "x"),
+                                                               Pair("double", "y"),
+                                                               Pair("char", "z")))
+                        {
+                            a("return false;")
+                        })
                 }
 
-                it("has a static method called 'post_Charlie' with " +
-                   "a [Pure] attribute, parameters of int, double, char and object and a return type of bool")
+                it("declares the static method 'post_Charlie' with " +
+                   "a [Pure] attribute, parameters of int, double, char and Token and a return type of bool")
                 {
                     cs.shouldContain(
-                        a("[Pure]",
-                          "public static bool post_Charlie(int x, double y, char z, object t)") { anything() })
+                        aPureStaticMethodDeclaration("bool", "post_Charlie", listOf(Pair("int", "x"),
+                                                                                    Pair("double", "y"),
+                                                                                    Pair("char", "z"),
+                                                                                    Pair("Token", "t"))))
                 }
 
                 it("returns 1 + 1 == 2 in 'post_Charlie'")
                 {
                     cs.shouldContain(
-                        a("bool post_Charlie(int x, double y, char z, object t)") { a("return 1 + 1 == 2;") })
+                        inMethod("bool", "post_Charlie", listOf(Pair("int", "x"),
+                                                                Pair("double", "y"),
+                                                                Pair("char", "z"),
+                                                                Pair("Token", "t")))
+                        {
+                            a("return 1 + 1 == 2;")
+                        })
                 }
 
-                it("has a static method called 'Delta' with " +
+                it("declares the static method 'Delta' with " +
                    "a [Pure] attribute, a parameter of string and a return type of string")
                 {
                     cs.shouldContain(
-                        a("[Pure]",
-                          "public static string Delta(string i)") { anything() })
+                        aPureStaticMethodDeclaration("string", "Delta", listOf(Pair("string", "i"))))
                 }
 
                 it("invokes 'post_Delta' by Contract.Ensures in 'Delta'")
                 {
                     cs.shouldContain(
-                        a("string Delta(string i)")
+                        inTopOfMethod("string", "Delta", listOf(Pair("string", "i")))
                         {
-                            a("Contract.Ensures(post_Delta(i, Contract.Result<string>()));") +
-                            anything()
+                            a("Contract.Ensures(post_Delta(i, Contract.Result<string>()));")
                         })
                 }
 
                 it("throws a NotImplementedException in 'Delta'")
                 {
                     cs.shouldContain(
-                        a("string Delta(string i)")
+                        inBottomOfMethod("string", "Delta", listOf(Pair("string", "i")))
                         {
-                            anything() +
                             a("throw new NotImplementedException();")
                         })
                 }
 
-                it("has a static method called 'post_Delta' with " +
+                it("declares the static method 'post_Delta' with " +
                    "a [Pure] attribute, parameters of string and string and a return type of bool")
                 {
-                    cs.shouldContain(
-                        a("[Pure]",
-                          "public static bool post_Delta(string i, string o)") { anything() })
+                    aPureStaticMethodDeclaration("bool", "post_Delta", listOf(Pair("string", "i"),
+                                                                              Pair("string", "o")))
                 }
 
                 it("returns i == o in 'post_Delta'")
                 {
                     cs.shouldContain(
-                        a("bool post_Delta(string i, string o)") { a("return i == o;") })
+                        inMethod("bool", "post_Delta", listOf(Pair("string", "i"),
+                                                              Pair("string", "o")))
+                        {
+                            a("return i == o;")
+                        })
                 }
             }
         }

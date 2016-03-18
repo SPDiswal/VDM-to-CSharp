@@ -27,7 +27,7 @@ final class FunctionApplications : Spek()
 
                 it("invokes 'Bravo' in 'Alpha'")
                 {
-                    cs.shouldContain(a("bool Alpha()") { a("return Bravo();") })
+                    cs.shouldContain(inMethod("bool", "Alpha") { a("return Bravo();") })
                 }
             }
         }

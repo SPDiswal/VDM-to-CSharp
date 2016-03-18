@@ -1,0 +1,42 @@
+#set( $importedTypes = $transform.extractStringValues($node.dependencies) )## TODO Sort imported types by name.
+#set( $namespace = $node.package )
+##
+#set( $name = $node.name )
+#set( $implementedInterfaces = $template.joinAll($node.superNames, ", ") )
+#if( $implementedInterfaces != "" )
+    #set( $implementedInterfaces = " : $implementedInterfaces" )
+#end
+##
+#set( $fields = $template.visitAll($node.fields) )
+#set( $methods = $template.visitAll($node.methods) )
+#set( $nestedClasses = $template.visitAll($node.innerClasses) )
+##
+#set( $modifiers = $template.formatClassModifiers($node) )
+##
+#foreach( $importedType in $importedTypes )
+    using $importedType;
+#end
+##
+#if( $namespace )
+    namespace $namespace
+    {
+#end
+##
+$modifiers class $name$implementedInterfaces
+{
+    #foreach( $field in $fields )
+        $field
+    #end
+
+    #foreach( $method in $methods )
+        $method
+    #end
+
+    #foreach( $nestedClass in $nestedClasses )
+        $nestedClass
+    #end
+}
+##
+#if( $namespace )
+    }
+#end

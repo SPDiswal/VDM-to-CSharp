@@ -1,1 +1,7 @@
-object
+#if( $node.namedInvType )
+    #set( $type = $template.visit($node.namedInvType.name) )
+#else
+    #set( $type = "Token" )
+#end
+##
+$type
