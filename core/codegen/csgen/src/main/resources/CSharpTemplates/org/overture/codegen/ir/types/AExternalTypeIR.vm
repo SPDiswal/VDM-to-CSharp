@@ -1,3 +1,0 @@
-#set( $identifier = $node.name )
-##
-$identifier

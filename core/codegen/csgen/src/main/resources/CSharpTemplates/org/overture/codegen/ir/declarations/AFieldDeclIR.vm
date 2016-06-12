@@ -1,6 +1,0 @@
-## A field is transcompiled to a C# property with a getter and a setter.
-##
-#set( $fieldType = $template.visit($node.type) )
-#set( $fieldName = $node.name )
-##
-public $fieldType $fieldName { get; set; }

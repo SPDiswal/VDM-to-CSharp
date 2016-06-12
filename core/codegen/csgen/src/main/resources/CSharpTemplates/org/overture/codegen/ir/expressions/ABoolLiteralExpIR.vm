@@ -1,3 +1,0 @@
-#set( $booleanValue = $node.value )
-##
-$booleanValue

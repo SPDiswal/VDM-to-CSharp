@@ -2,7 +2,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <properties>
-        <kotlin.version>1.0.0</kotlin.version>
+        <kotlin.version>1.0.2</kotlin.version>
     </properties>
 
     <parent>
@@ -14,12 +14,17 @@
 
     <groupId>org.overturetool.core.codegen</groupId>
     <artifactId>csgen</artifactId>
-    <name>The VDM-to-C# transcompiler</name>
+    <name>The VDM-SL-to-C# transcompiler</name>
 
     <repositories>
         <repository>
             <id>jetbrains-all</id>
             <url>http://repository.jetbrains.com/all</url>
+        </repository>
+
+        <repository>
+            <id>sargunster</id>
+            <url>https://dl.bintray.com/sargunster/maven/</url>
         </repository>
     </repositories>
 
@@ -38,6 +43,13 @@
             <version>${kotlin.version}</version>
         </dependency>
 
+        <!-- CakeParse parser combinator for Kotlin. -->
+        <dependency>
+            <groupId>me.sargunvohra.lib</groupId>
+            <artifactId>CakeParse</artifactId>
+            <version>1.0.7</version>
+        </dependency>
+
         <!-- JUnit. -->
         <dependency>
             <groupId>junit</groupId>
@@ -51,6 +63,7 @@
             <groupId>com.natpryce</groupId>
             <artifactId>hamkrest</artifactId>
             <version>1.1.0.0</version>
+            <scope>test</scope>
         </dependency>
 
         <!-- Spek specification framework for Kotlin. -->
@@ -68,26 +81,28 @@
 
         <plugins>
             <plugin>
-                <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
+                <groupId>org.jetbrains.kotlin</groupId>
                 <version>${kotlin.version}</version>
+
+                <configuration />
                 <executions>
                     <execution>
                         <id>compile</id>
+                        <phase>compile</phase>
                         <goals>
                             <goal>compile</goal>
                         </goals>
                     </execution>
-
                     <execution>
                         <id>test-compile</id>
+                        <phase>test-compile</phase>
                         <goals>
                             <goal>test-compile</goal>
                         </goals>
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -101,7 +116,7 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <mainClass>org.overture.codegen.vdm2cs.Vdm2CsKt</mainClass>
+                    <mainClass>org.overture.codegen.vdm2cs.VdmSlToCsKt</mainClass>
                 </configuration>
             </plugin>
         </plugins>

@@ -1,4 +1,0 @@
-#set( $expression = $template.visit($node.exp) )
-#set( $type = $template.visit($node.type) )
-##
-($type) $expression

@@ -1,9 +1,0 @@
-#set( $normalisedNode = $transform.removeRedundantQualifier($node) )
-#if( $normalisedNode.definingClass )
-    #set( $qualifier = $normalisedNode.definingClass + "." )
-#else
-    #set( $qualifier = "" )
-#end
-#set( $name = $node.name )
-##
-$qualifier$name

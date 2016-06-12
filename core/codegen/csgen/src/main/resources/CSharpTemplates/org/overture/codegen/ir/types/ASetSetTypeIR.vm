@@ -1,3 +1,0 @@
-#set( $elementType = $template.visit($node.setOf) )
-##
-ISet<$elementType>

@@ -1,4 +1,0 @@
-#set( $parameterType = $template.visit($node.type) )
-#set( $parameterName = $template.visit($node.pattern) )
-##
-$parameterType $parameterName

@@ -1,3 +1,0 @@
-#set( $recordName = $template.visit($node.name) )
-##
-$recordName

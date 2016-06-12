@@ -110,3 +110,7 @@ release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
+
+## Other
+Scratchpad.kt
+Features.md

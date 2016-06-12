@@ -1,3 +1,0 @@
-#set( $expression = $template.visit($node.exp) )
-##
-return $expression;

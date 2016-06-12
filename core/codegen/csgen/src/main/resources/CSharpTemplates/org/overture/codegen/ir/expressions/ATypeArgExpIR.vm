@@ -1,3 +1,0 @@
-#set( $type = $template.visit($node.type) )
-##
-$type

@@ -1,1 +1,1 @@
-Experimental VDM-to-C# transcompiler.
+# Experimental VDM-SL-to-C# transcompiler
