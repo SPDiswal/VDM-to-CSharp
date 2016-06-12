@@ -61,9 +61,7 @@ fun publicSealedDataClass(name: String, fields: List<DataFieldEntry>, invariants
             +contractInvariantMethod(invariants)
     }.apply(initialiser).apply {
 
-    // TODO Copy method
-
-    +objectEqualsMethod(enclosingClassName = name)
+    +copyableCopyMethod(enclosingClassName = name, fieldEntries = fields)
 
     when (fields.size)
     {
@@ -71,7 +69,9 @@ fun publicSealedDataClass(name: String, fields: List<DataFieldEntry>, invariants
         else -> +equatableEqualsMethod(enclosingClassName = name, fieldEntries = fields)
     }
 
-    // TODO GetHashCode method
+    +objectEqualsMethod(enclosingClassName = name)
+
+    +getHashCodeMethod(fieldEntries = fields)
 }.ast
 
 private fun dataClassConstructor(enclosingClassName: String, fieldEntries: List<DataFieldEntry>)
@@ -82,14 +82,29 @@ private fun dataClassConstructor(enclosingClassName: String, fieldEntries: List<
         +assigns(fieldName, fieldName.toLowerCamelCase())
 }
 
-private fun objectEqualsMethod(enclosingClassName: String)
-    = publicOverrideMethod(name = "Equals",
-                           returnType = "bool",
-                           parameters = listOf("that" to "object"))
+private fun contractInvariantMethod(invariants: List<String>)
+    = privateMethod(name = CONTRACT_INVARIANT_METHOD,
+                    returnType = "void",
+                    parameters = emptyList(),
+                    attributes = listOf("ContractInvariantMethod"))
 {
-    +ifThen(ifCondition = "ReferenceEquals(null, that)", thenStatement = "return false;")
-    +ifThen(ifCondition = "ReferenceEquals(this, that)", thenStatement = "return true;")
-    +returns("that is $enclosingClassName && Equals(($enclosingClassName) that)")
+    for (invariant in invariants)
+        +invariant(invariant)
+}
+
+private fun copyableCopyMethod(enclosingClassName: String, fieldEntries: List<DataFieldEntry>)
+    = publicMethod(name = "Copy",
+                   returnType = enclosingClassName,
+                   parameters = emptyList())
+{
+    val formattedFields = fieldEntries.map {
+        when (it)
+        {
+            is DefaultFieldEntry -> it.name
+            else                 -> "${it.name}.Copy()"
+        }
+    }
+    +expressionBody("new $enclosingClassName(${formattedFields.joinToString(", ")})")
 }
 
 private fun emptyEquatableEqualsMethod(enclosingClassName: String)
@@ -123,14 +138,33 @@ private fun equatableEqualsMethod(enclosingClassName: String, fieldEntries: List
     +returns(comparisons.joinToString(" && "))
 }
 
-private fun contractInvariantMethod(invariants: List<String>)
-    = privateMethod(name = CONTRACT_INVARIANT_METHOD,
-                    returnType = "void",
-                    parameters = emptyList(),
-                    attributes = listOf("ContractInvariantMethod"))
+private fun objectEqualsMethod(enclosingClassName: String)
+    = publicOverrideMethod(name = "Equals",
+                           returnType = "bool",
+                           parameters = listOf("that" to "object"))
 {
-    for (invariant in invariants)
-        +invariant(invariant)
+    +ifThen(ifCondition = "ReferenceEquals(this, that)", thenStatement = "return true;")
+    +returns("that is $enclosingClassName && Equals(($enclosingClassName) that)")
+}
+
+private fun getHashCodeMethod(fieldEntries: List<DataFieldEntry>)
+    = publicOverrideMethod(name = "GetHashCode",
+                           returnType = "int",
+                           parameters = emptyList())
+{
+    +assigns("var result", "17")
+
+    for ((fieldName, fieldType, isMutable) in fieldEntries)
+    {
+        when (fieldType)
+        {
+            "bool" -> +assigns("result", "31 * result + ($fieldName ? 1 : 0)")
+            "int"  -> +assigns("result", "31 * result + $fieldName")
+            else   -> +assigns("result", "31 * result + $fieldName.GetHashCode()")
+        }
+    }
+
+    +returns("result")
 }
 
 //endregion
