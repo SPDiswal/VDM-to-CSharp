@@ -67,6 +67,9 @@ private fun transcompileVdmSlFiles()
 @Throws(AnalysisException::class)
 private fun parseFiles(files: List<File>): List<AModuleModules>
 {
+    if (files.isEmpty())
+        throw AnalysisException("No VDM-SL files found")
+    
     Settings.dialect = Dialect.VDM_SL
     Settings.release = Release.VDM_10
 

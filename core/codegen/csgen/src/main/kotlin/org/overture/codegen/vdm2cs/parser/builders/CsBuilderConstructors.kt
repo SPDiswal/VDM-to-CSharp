@@ -100,7 +100,8 @@ private fun copyableCopyMethod(enclosingClassName: String, fieldEntries: List<Da
     val formattedFields = fieldEntries.map {
         when (it)
         {
-            is DefaultFieldEntry -> it.name
+            is DefaultFieldEntry,
+            is StringFieldEntry -> it.name
             else                 -> "${it.name}.Copy()"
         }
     }
